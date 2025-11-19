@@ -1,0 +1,49 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Record {
+  id                                   String    @id @default(cuid())
+  createdAt                            DateTime  @default(now())
+  updatedAt                            DateTime  @updatedAt
+  status                               String    // "PENDING" or "COMPLETED"
+  
+  // Form fields
+  dronaSupervisor                      String
+  shift                                String    // "Day Shift" or "Night Shift"
+  date                                 String?   // Date in YYYY-MM-DD format
+  inTime                               String?   // In time in HH:MM format
+  outTime                              String?   // Out time in HH:MM format
+  srNoVehicleCount                     Int?      // Nullable until completed
+  binNo                                String
+  modelNo                              String
+  chassisNo                            String
+  type                                 String    // "PTS" or "PDI"
+  
+  // Manpower details
+  electrician                          Int       @default(0)
+  fitter                               Int       @default(0)
+  painter                              Int       @default(0)
+  helper                               Int       @default(0)
+  productionInchargeFromVBCL           String    @default("")
+  
+  // Other fields
+  remarks                              String?
+  completedAt                          DateTime? // For monthly counter logic
+}

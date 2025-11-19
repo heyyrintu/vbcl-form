@@ -1,0 +1,161 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { auth } from "@/lib/auth";
+import { getCurrentMonthRange } from "@/lib/utils";
+import { syncRecordToSheet } from "@/lib/googleSheets";
+
+// PATCH - Update record (save, submit, or cancel)
+export async function PATCH(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await context.params;
+    const data = await request.json();
+
+    // Fetch the current record
+    const existingRecord = await prisma.record.findUnique({
+      where: { id },
+    });
+
+    if (!existingRecord) {
+      return NextResponse.json({ error: "Record not found" }, { status: 404 });
+    }
+
+    // Handle different actions
+    if (data.action === "submit" && existingRecord.status === "PENDING") {
+      // Calculate monthly counter
+      const { startOfMonth, endOfMonth } = getCurrentMonthRange();
+      
+      const maxRecord = await prisma.record.findFirst({
+        where: {
+          status: "COMPLETED",
+          completedAt: {
+            gte: startOfMonth,
+            lte: endOfMonth,
+          },
+        },
+        orderBy: {
+          srNoVehicleCount: "desc",
+        },
+      });
+
+      const newCount = (maxRecord?.srNoVehicleCount || 0) + 1;
+
+      // Update to completed
+      const updatedRecord = await prisma.record.update({
+        where: { id },
+        data: {
+          status: "COMPLETED",
+          srNoVehicleCount: newCount,
+          completedAt: new Date(),
+          // Update any other fields from the request
+          dronaSupervisor: data.dronaSupervisor || existingRecord.dronaSupervisor,
+          shift: data.shift || existingRecord.shift,
+          date: data.date !== undefined ? data.date : existingRecord.date,
+          inTime: data.inTime !== undefined ? data.inTime : existingRecord.inTime,
+          outTime: data.outTime !== undefined ? data.outTime : existingRecord.outTime,
+          binNo: data.binNo || existingRecord.binNo,
+          modelNo: data.modelNo || existingRecord.modelNo,
+          chassisNo: data.chassisNo || existingRecord.chassisNo,
+          type: data.type || existingRecord.type,
+          electrician: data.electrician !== undefined ? data.electrician : existingRecord.electrician,
+          fitter: data.fitter !== undefined ? data.fitter : existingRecord.fitter,
+          painter: data.painter !== undefined ? data.painter : existingRecord.painter,
+          helper: data.helper !== undefined ? data.helper : existingRecord.helper,
+          productionInchargeFromVBCL: data.productionInchargeFromVBCL !== undefined ? data.productionInchargeFromVBCL : existingRecord.productionInchargeFromVBCL,
+          remarks: data.remarks !== undefined ? data.remarks : existingRecord.remarks,
+        },
+      });
+
+      // Sync to Google Sheets
+      const syncResult = await syncRecordToSheet(updatedRecord);
+      
+      return NextResponse.json({ 
+        record: updatedRecord,
+        sheetSyncSuccess: syncResult.success,
+        sheetSyncError: syncResult.error,
+      });
+    } else if (data.action === "cancel" && existingRecord.status === "COMPLETED") {
+      // Move back to pending
+      const updatedRecord = await prisma.record.update({
+        where: { id },
+        data: {
+          status: "PENDING",
+          srNoVehicleCount: null,
+          completedAt: null,
+        },
+      });
+
+      return NextResponse.json(updatedRecord);
+    } else if (data.action === "save" || !data.action) {
+      // Regular update (save)
+      const updatedRecord = await prisma.record.update({
+        where: { id },
+        data: {
+          dronaSupervisor: data.dronaSupervisor !== undefined ? data.dronaSupervisor : existingRecord.dronaSupervisor,
+          shift: data.shift !== undefined ? data.shift : existingRecord.shift,
+          date: data.date !== undefined ? data.date : existingRecord.date,
+          inTime: data.inTime !== undefined ? data.inTime : existingRecord.inTime,
+          outTime: data.outTime !== undefined ? data.outTime : existingRecord.outTime,
+          binNo: data.binNo !== undefined ? data.binNo : existingRecord.binNo,
+          modelNo: data.modelNo !== undefined ? data.modelNo : existingRecord.modelNo,
+          chassisNo: data.chassisNo !== undefined ? data.chassisNo : existingRecord.chassisNo,
+          type: data.type !== undefined ? data.type : existingRecord.type,
+          electrician: data.electrician !== undefined ? data.electrician : existingRecord.electrician,
+          fitter: data.fitter !== undefined ? data.fitter : existingRecord.fitter,
+          painter: data.painter !== undefined ? data.painter : existingRecord.painter,
+          helper: data.helper !== undefined ? data.helper : existingRecord.helper,
+          productionInchargeFromVBCL: data.productionInchargeFromVBCL !== undefined ? data.productionInchargeFromVBCL : existingRecord.productionInchargeFromVBCL,
+          remarks: data.remarks !== undefined ? data.remarks : existingRecord.remarks,
+        },
+      });
+
+      return NextResponse.json(updatedRecord);
+    }
+
+    return NextResponse.json(
+      { error: "Invalid action or status transition" },
+      { status: 400 }
+    );
+  } catch (error) {
+    console.error("Error updating record:", error);
+    return NextResponse.json(
+      { error: "Failed to update record" },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - Delete a record
+export async function DELETE(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await context.params;
+
+    await prisma.record.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ message: "Record deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting record:", error);
+    return NextResponse.json(
+      { error: "Failed to delete record" },
+      { status: 500 }
+    );
+  }
+}
+
