@@ -1,6 +1,7 @@
 "use client";
 
 import RecordCard from "./RecordCard";
+import { FileX2 } from "lucide-react";
 
 interface RecordListProps {
   records: any[];
@@ -13,30 +14,20 @@ interface RecordListProps {
 export default function RecordList({ records, isCompleted, onEdit, onSubmit, onCancel }: RecordListProps) {
   if (records.length === 0) {
     return (
-      <div className="text-center py-12">
-        <svg
-          className="mx-auto h-12 w-12 text-gray-400"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-          />
-        </svg>
-        <h3 className="mt-2 text-sm font-medium text-gray-900">No records</h3>
-        <p className="mt-1 text-sm text-gray-500">
-          {isCompleted ? "No completed entries yet." : "Get started by creating a new entry."}
+      <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
+        <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-full mb-4">
+          <FileX2 className="h-8 w-8 text-gray-400 dark:text-gray-500" />
+        </div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">No records found</h3>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 max-w-xs">
+          {isCompleted ? "There are no completed entries to display at the moment." : "Get started by creating a new entry using the form above."}
         </p>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {records.map((record) => (
         <RecordCard
           key={record.id}

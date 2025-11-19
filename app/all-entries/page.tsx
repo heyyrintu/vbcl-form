@@ -6,7 +6,11 @@ import { signOut } from "next-auth/react";
 import { formatDateTime, convertTo12Hour } from "@/lib/utils";
 import AppSidebar from "@/components/AppSidebar";
 import { BGPattern } from "@/components/ui/bg-pattern";
+import { ShapeLandingHero } from "@/components/ui/shape-landing-hero";
 import { cn } from "@/lib/utils";
+import { Download, LayoutDashboard } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import * as XLSX from "xlsx";
 
 export default function AllEntriesPage() {
   const [records, setRecords] = useState<any[]>([]);
@@ -66,28 +70,114 @@ export default function AllEntriesPage() {
     }
   };
 
+  const exportToExcel = () => {
+    // Prepare data for Excel
+    const excelData = sortedRecords.map((record) => {
+      // Format employees
+      const employees = record.employeeAssignments
+        ?.map((assignment: any) => `${assignment.employee.name} [${assignment.employee.employeeId}] (${assignment.splitCount.toFixed(2)})`)
+        .join(", ") || "";
+
+      return {
+        "Vehicle #": record.srNoVehicleCount || "",
+        "Status": record.status,
+        "Supervisor": record.dronaSupervisor,
+        "Shift": record.shift,
+        "Date": record.date ? new Date(record.date).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "",
+        "In Time": record.inTime ? convertTo12Hour(record.inTime) : "",
+        "Out Time": record.outTime ? convertTo12Hour(record.outTime) : "",
+        "Bin No": record.binNo,
+        "Model No": record.modelNo,
+        "Chassis No": record.chassisNo,
+        "Type": record.type,
+        "Electrician": record.electrician,
+        "Fitter": record.fitter,
+        "Painter": record.painter,
+        "Helper": record.helper,
+        "Production Incharge": record.productionInchargeFromVBCL || "",
+        "Employees": employees,
+        "Remarks": record.remarks || "",
+        "Created At": formatDateTime(record.createdAt),
+        "Last Updated": formatDateTime(record.updatedAt),
+      };
+    });
+
+    // Create workbook and worksheet
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "All Entries");
+
+    // Auto-size columns
+    const colWidths = Object.keys(excelData[0] || {}).map((key) => ({
+      wch: Math.max(key.length, 15),
+    }));
+    ws["!cols"] = colWidths;
+
+    // Generate filename with current date
+    const filename = `Vehicle_Tracker_Entries_${new Date().toISOString().split("T")[0]}.xlsx`;
+
+    // Download file
+    XLSX.writeFile(wb, filename);
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#DE1C1C] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={cn("flex w-full h-screen overflow-hidden bg-gray-50")}>
+    <div className={cn("flex flex-col md:flex-row w-full h-screen overflow-hidden bg-gray-50 dark:bg-gray-950 transition-colors duration-300")}>
+      <ShapeLandingHero className="fixed inset-0 z-0 opacity-60 dark:opacity-40" />
       <AppSidebar />
       
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto relative">
-        <BGPattern variant="grid" mask="fade-edges" size={24} fill="rgba(222, 28, 28, 0.15)" />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">All Entries</h1>
-            <p className="text-sm text-gray-600">Complete list of all production records</p>
+      <main className="flex-1 overflow-y-auto relative z-10">
+        {/* Subtle Grid Pattern Overlay */}
+        <BGPattern variant="grid" mask="fade-edges" size={24} fill="rgba(222, 28, 28, 0.1)" className="absolute inset-0 pointer-events-none dark:opacity-30" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 relative">
+          {/* Hero Section */}
+          <div className="relative mb-8 sm:mb-10 p-[1px] rounded-3xl overflow-hidden group" style={{ background: 'linear-gradient(to right, rgba(224, 30, 31, 0.7), rgba(254, 165, 25, 0.7))' }}>
+            <div className="relative h-full w-full rounded-3xl overflow-hidden bg-white/40 dark:bg-gray-900/40 backdrop-blur-xl">
+              {/* Glassmorphism Background */}
+              <div className="absolute inset-0 bg-white/40 dark:bg-gray-900/40 backdrop-blur-xl shadow-lg rounded-3xl transition-all duration-500 group-hover:shadow-2xl group-hover:bg-white/50 dark:group-hover:bg-gray-900/50" />
+
+            {/* Decorative Gradient Blobs */}
+            <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/20 rounded-full blur-3xl opacity-60 animate-pulse" />
+            <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-accent/20 rounded-full blur-3xl opacity-60 animate-pulse delay-1000" />
+
+              <div className="relative z-10 p-6 sm:p-8 flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider mb-2">
+                  <LayoutDashboard className="w-3 h-3" />
+                  Production Records
+                </div>
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-gray-900 dark:text-white tracking-tight">
+                  All <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Entries</span>
+                </h1>
+                <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 max-w-lg mx-auto md:mx-0">
+                  Complete list of all production records with detailed information and export capabilities.
+                </p>
+              </div>
+
+              {sortedRecords.length > 0 && (
+                <Button
+                  onClick={exportToExcel}
+                  variant="gradient"
+                  size="lg"
+                  className="w-full sm:w-auto h-12 sm:h-14 px-8 text-lg shadow-xl shadow-primary/20 hover:shadow-primary/40 hover:scale-105 transition-all duration-300 group/btn"
+                >
+                  <Download className="w-6 h-6 mr-2 group-hover/btn:scale-110 transition-transform duration-300" />
+                  Download Excel
+                </Button>
+              )}
+              </div>
+            </div>
           </div>
         {/* Filters */}
         <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -126,10 +216,10 @@ export default function AllEntriesPage() {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
                   <th
                     scope="col"
@@ -153,6 +243,15 @@ export default function AllEntriesPage() {
                     Shift
                   </th>
                   <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    In Time
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Out Time
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Bin No
                   </th>
                   <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -166,6 +265,15 @@ export default function AllEntriesPage() {
                   </th>
                   <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Manpower
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Employees
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Production Incharge
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Remarks
                   </th>
                   <th
                     scope="col"
@@ -193,16 +301,16 @@ export default function AllEntriesPage() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                 {sortedRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={16} className="px-4 py-8 text-center text-gray-500">
                       No records found
                     </td>
                   </tr>
                 ) : (
                   sortedRecords.map((record) => (
-                    <tr key={record.id} className="hover:bg-gray-50">
+                    <tr key={record.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                       <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                         {record.srNoVehicleCount ? (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#DE1C1C]/10 text-[#DE1C1C]">
@@ -223,33 +331,28 @@ export default function AllEntriesPage() {
                           {record.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                         {record.dronaSupervisor}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                        <div className="flex flex-col gap-1">
-                          <div>{record.shift}</div>
-                          {record.date && (
-                            <div className="text-xs text-gray-400">
-                              {new Date(record.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-                            </div>
-                          )}
-                          {(record.inTime || record.outTime) && (
-                            <div className="text-xs text-gray-400">
-                              {record.inTime ? `In: ${convertTo12Hour(record.inTime)}` : ''}
-                              {record.inTime && record.outTime ? ' | ' : ''}
-                              {record.outTime ? `Out: ${convertTo12Hour(record.outTime)}` : ''}
-                            </div>
-                          )}
-                        </div>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                        {record.shift}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {record.date ? new Date(record.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : "-"}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {record.inTime ? convertTo12Hour(record.inTime) : "-"}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {record.outTime ? convertTo12Hour(record.outTime) : "-"}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                         {record.binNo}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                         {record.modelNo}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                         {record.chassisNo}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
@@ -263,7 +366,7 @@ export default function AllEntriesPage() {
                           {record.type}
                         </span>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         <div className="flex flex-wrap gap-x-2 gap-y-0.5">
                           <span className="text-xs">E:{record.electrician}</span>
                           <span className="text-xs">F:{record.fitter}</span>
@@ -271,10 +374,29 @@ export default function AllEntriesPage() {
                           <span className="text-xs">H:{record.helper}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 max-w-xs">
+                        {record.employeeAssignments && record.employeeAssignments.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {record.employeeAssignments.map((assignment: any, idx: number) => (
+                              <span key={idx} className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">
+                                {assignment.employee.name} [{assignment.employee.employeeId}]
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {record.productionInchargeFromVBCL || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 max-w-xs">
+                        {record.remarks || "-"}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         {formatDateTime(record.updatedAt)}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         {formatDateTime(record.createdAt)}
                       </td>
                     </tr>

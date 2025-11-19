@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import { prisma } from "@/lib/db";
 
 // Initialize Google Sheets API client
 function getGoogleSheetsClient() {
@@ -67,7 +68,7 @@ export async function syncRecordToSheet(record: RecordData): Promise<{ success: 
       // Create headers
       await sheets.spreadsheets.values.update({
         spreadsheetId: sheetId,
-        range: "Sheet1!A1:V1",
+        range: "Sheet1!A1:W1",
         valueInputOption: "RAW",
         requestBody: {
           values: [[
@@ -92,10 +93,31 @@ export async function syncRecordToSheet(record: RecordData): Promise<{ success: 
             "Production incharge name from VBCL",
             "Remarks",
             "Completed At",
+            "Employees (with split counts)",
           ]],
         },
       });
     }
+
+    // Fetch employee assignments for this record
+    const employeeAssignments = await prisma.employeeAssignment.findMany({
+      where: {
+        recordId: record.id,
+      },
+      include: {
+        employee: {
+          select: {
+            employeeId: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    // Format employee data as "Name [EmployeeID] (splitCount), Name [EmployeeID] (splitCount)"
+    const employeeData = employeeAssignments
+      .map((assignment) => `${assignment.employee.name} [${assignment.employee.employeeId}] (${assignment.splitCount.toFixed(2)})`)
+      .join(", ");
 
     // Prepare row data
     const rowData = [
@@ -120,6 +142,7 @@ export async function syncRecordToSheet(record: RecordData): Promise<{ success: 
       record.productionInchargeFromVBCL,
       record.remarks || "",
       record.completedAt ? record.completedAt.toISOString() : "",
+      employeeData,
     ];
 
     // Check if record already exists in sheet
@@ -136,7 +159,7 @@ export async function syncRecordToSheet(record: RecordData): Promise<{ success: 
       // Update existing row
       await sheets.spreadsheets.values.update({
         spreadsheetId: sheetId,
-        range: `Sheet1!A${rowIndex + 1}:V${rowIndex + 1}`,
+        range: `Sheet1!A${rowIndex + 1}:W${rowIndex + 1}`,
         valueInputOption: "RAW",
         requestBody: {
           values: [rowData],
@@ -146,7 +169,7 @@ export async function syncRecordToSheet(record: RecordData): Promise<{ success: 
       // Append new row
       await sheets.spreadsheets.values.append({
         spreadsheetId: sheetId,
-        range: "Sheet1!A:V",
+        range: "Sheet1!A:W",
         valueInputOption: "RAW",
         requestBody: {
           values: [rowData],

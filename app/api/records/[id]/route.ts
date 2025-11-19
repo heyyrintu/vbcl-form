@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { getCurrentMonthRange } from "@/lib/utils";
 import { syncRecordToSheet } from "@/lib/googleSheets";
+import { assignEmployeesToRecord } from "@/lib/employeeUtils";
 
 // PATCH - Update record (save, submit, or cancel)
 export async function PATCH(
@@ -73,6 +74,16 @@ export async function PATCH(
         },
       });
 
+      // Update employee assignments if provided
+      if (data.employeeIds && Array.isArray(data.employeeIds) && updatedRecord.date && updatedRecord.shift) {
+        await assignEmployeesToRecord(
+          updatedRecord.id,
+          data.employeeIds,
+          updatedRecord.date,
+          updatedRecord.shift
+        );
+      }
+
       // Sync to Google Sheets
       const syncResult = await syncRecordToSheet(updatedRecord);
       
@@ -90,6 +101,11 @@ export async function PATCH(
           srNoVehicleCount: null,
           completedAt: null,
         },
+      });
+
+      // Remove employee assignments when cancelling
+      await prisma.employeeAssignment.deleteMany({
+        where: { recordId: id },
       });
 
       return NextResponse.json(updatedRecord);
@@ -115,6 +131,16 @@ export async function PATCH(
           remarks: data.remarks !== undefined ? data.remarks : existingRecord.remarks,
         },
       });
+
+      // Update employee assignments if provided
+      if (data.employeeIds && Array.isArray(data.employeeIds) && updatedRecord.date && updatedRecord.shift) {
+        await assignEmployeesToRecord(
+          updatedRecord.id,
+          data.employeeIds,
+          updatedRecord.date,
+          updatedRecord.shift
+        );
+      }
 
       return NextResponse.json(updatedRecord);
     }

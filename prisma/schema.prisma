@@ -36,7 +36,7 @@ model Record {
   chassisNo                            String
   type                                 String    // "PTS" or "PDI"
   
-  // Manpower details
+  // Manpower details (calculated from EmployeeAssignments)
   electrician                          Int       @default(0)
   fitter                               Int       @default(0)
   painter                              Int       @default(0)
@@ -46,4 +46,52 @@ model Record {
   // Other fields
   remarks                              String?
   completedAt                          DateTime? // For monthly counter logic
+  
+  // Relations
+  employeeAssignments                  EmployeeAssignment[]
+}
+
+model Employee {
+  id                String               @id @default(cuid())
+  employeeId        String               @unique // Format: DLPL/{E|F|P|H}/{number}
+  name              String
+  role              String               // "Electrician", "Fitter", "Painter", "Helper"
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  
+  // Relations
+  attendances       EmployeeAttendance[]
+  assignments       EmployeeAssignment[]
+  
+  @@unique([name, role])
+}
+
+model EmployeeAttendance {
+  id          String   @id @default(cuid())
+  employeeId  String
+  date        String   // Date in YYYY-MM-DD format
+  shift       String   // "Day" or "Night"
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  @@unique([employeeId, date, shift])
+  @@index([date, shift])
+}
+
+model EmployeeAssignment {
+  id          String   @id @default(cuid())
+  recordId    String
+  employeeId  String
+  splitCount  Float    @default(1.0) // Fractional count (e.g., 0.5 if used in 2 entries)
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  record      Record   @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  @@unique([recordId, employeeId])
+  @@index([employeeId])
+  @@index([recordId])
 }

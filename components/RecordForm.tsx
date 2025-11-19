@@ -27,6 +27,12 @@ import {
   FieldSeparator,
   FieldSet,
 } from "@/components/ui/field";
+import EmployeeSelector from "@/components/EmployeeSelector";
+
+interface Employee {
+  id: string;
+  name: string;
+}
 
 interface RecordFormData {
   dronaSupervisor: string;
@@ -70,7 +76,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
     productionInchargeFromVBCL: "",
     remarks: "",
   });
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -78,6 +84,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
   const [dateValue, setDateValue] = useState<Dayjs | null>(null);
   const [inTimeValue, setInTimeValue] = useState<Dayjs | null>(null);
   const [outTimeValue, setOutTimeValue] = useState<Dayjs | null>(null);
+  const [selectedEmployees, setSelectedEmployees] = useState<Employee[]>([]);
 
   useEffect(() => {
     if (existingRecord) {
@@ -98,12 +105,12 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
         productionInchargeFromVBCL: existingRecord.productionInchargeFromVBCL || "",
         remarks: existingRecord.remarks || "",
       });
-      
+
       // Set DatePicker value from existing record
       if (existingRecord.date) {
         setDateValue(dayjs(existingRecord.date));
       }
-      
+
       // Set TimePicker values from existing record
       if (existingRecord.inTime) {
         const time24 = existingRecord.inTime;
@@ -121,6 +128,25 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
       }
     }
   }, [existingRecord]);
+
+  // Fetch employees for existing record
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      if (existingRecord?.id) {
+        try {
+          const response = await fetch(`/api/records/${existingRecord.id}/employees`);
+          if (response.ok) {
+            const employees = await response.json();
+            setSelectedEmployees(employees);
+          }
+        } catch (error) {
+          console.error("Failed to fetch employees for record:", error);
+        }
+      }
+    };
+
+    fetchEmployees();
+  }, [existingRecord?.id]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -157,7 +183,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
 
   const validateForm = () => {
     const errors: Record<string, string> = {};
-    
+
     if (!formData.dronaSupervisor.trim()) {
       errors.dronaSupervisor = "Drona Supervisor is required";
     }
@@ -184,18 +210,19 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
       const url = existingRecord
         ? `/api/records/${existingRecord.id}`
         : "/api/records";
-      
+
       const method = existingRecord ? "PATCH" : "POST";
-      
+
       // Convert Dayjs date and time values to format before sending
       const dataToSend = {
         ...formData,
         date: dateValue ? dateValue.format('YYYY-MM-DD') : null,
         inTime: inTimeValue ? inTimeValue.format('HH:mm') : null,
         outTime: outTimeValue ? outTimeValue.format('HH:mm') : null,
+        employeeIds: selectedEmployees.map(e => e.id),
         action: "save"
       };
-      
+
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -223,7 +250,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
     try {
       // First save the record if it's new
       let recordId = existingRecord?.id;
-      
+
       if (!existingRecord) {
         // Convert Dayjs date and time values to format before sending
         const dataToCreate = {
@@ -231,8 +258,9 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
           date: dateValue ? dateValue.format('YYYY-MM-DD') : null,
           inTime: inTimeValue ? inTimeValue.format('HH:mm') : null,
           outTime: outTimeValue ? outTimeValue.format('HH:mm') : null,
+          employeeIds: selectedEmployees.map(e => e.id),
         };
-        
+
         const createResponse = await fetch("/api/records", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -253,9 +281,10 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
         date: dateValue ? dateValue.format('YYYY-MM-DD') : null,
         inTime: inTimeValue ? inTimeValue.format('HH:mm') : null,
         outTime: outTimeValue ? outTimeValue.format('HH:mm') : null,
+        employeeIds: selectedEmployees.map(e => e.id),
         action: "submit"
       };
-      
+
       const response = await fetch(`/api/records/${recordId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -267,7 +296,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
       }
 
       const result = await response.json();
-      
+
       if (!result.sheetSyncSuccess && result.sheetSyncError) {
         setError(`Record submitted but Google Sheets sync failed: ${result.sheetSyncError}`);
         setTimeout(() => {
@@ -319,7 +348,6 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto">
             <div className="p-4 sm:p-6">
-
               {error && (
                 <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-md shadow-sm">
                   <p className="text-sm text-red-800 font-medium">{error}</p>
@@ -327,274 +355,264 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
               )}
 
               <form className="space-y-6 sm:space-y-8">
-              <FieldSet className="bg-gray-50/50 rounded-lg p-4 sm:p-6 border border-gray-200">
-                <FieldGroup className="space-y-4">
-                  <Field data-invalid={!!fieldErrors.dronaSupervisor}>
-                    <FieldLabel htmlFor="dronaSupervisor" className="text-gray-900 font-semibold">
-                      Drona Supervisor
-                    </FieldLabel>
-                    <Input
-                      id="dronaSupervisor"
-                      name="dronaSupervisor"
-                      value={formData.dronaSupervisor}
-                      onChange={handleInputChange}
-                      placeholder="Enter supervisor name"
-                      required
-                      aria-invalid={!!fieldErrors.dronaSupervisor}
-                    />
-                    {fieldErrors.dronaSupervisor && (
-                      <FieldError>{fieldErrors.dronaSupervisor}</FieldError>
-                    )}
-                  </Field>
+                <FieldSet className="bg-gray-50/50 rounded-lg p-3 sm:p-6 border border-gray-200">
+                  <FieldGroup className="space-y-4">
+                    <Field data-invalid={!!fieldErrors.dronaSupervisor}>
+                      <FieldLabel htmlFor="dronaSupervisor" className="text-gray-900 font-semibold">
+                        Drona Supervisor
+                      </FieldLabel>
+                      <Input
+                        id="dronaSupervisor"
+                        name="dronaSupervisor"
+                        value={formData.dronaSupervisor}
+                        onChange={handleInputChange}
+                        placeholder="Enter supervisor name"
+                        required
+                        aria-invalid={!!fieldErrors.dronaSupervisor}
+                      />
+                      {fieldErrors.dronaSupervisor && (
+                        <FieldError>{fieldErrors.dronaSupervisor}</FieldError>
+                      )}
+                    </Field>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <Field data-invalid={!!fieldErrors.shift}>
-                      <FieldLabel htmlFor="shift" className="text-gray-900 font-semibold">Shift</FieldLabel>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <Field data-invalid={!!fieldErrors.shift}>
+                        <FieldLabel htmlFor="shift" className="text-gray-900 font-semibold">Shift</FieldLabel>
+                        <Select
+                          value={formData.shift}
+                          onValueChange={(value) => handleSelectChange("shift", value)}
+                        >
+                          <SelectTrigger id="shift" className="w-full">
+                            <SelectValue placeholder="Select shift" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Day Shift">Day Shift</SelectItem>
+                            <SelectItem value="Night Shift">Night Shift</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </Field>
+
+                      <Field>
+                        <FieldLabel htmlFor="date" className="text-gray-900 font-semibold">Date</FieldLabel>
+                        <div className="flex gap-2">
+                          <DatePicker
+                            value={dateValue}
+                            onChange={(newValue) => setDateValue(newValue)}
+                            slotProps={{
+                              textField: {
+                                size: 'small',
+                                fullWidth: true,
+                                sx: {
+                                  '& .MuiOutlinedInput-root': {
+                                    borderRadius: '0.375rem',
+                                    fontSize: '0.875rem',
+                                  },
+                                },
+                              },
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            onClick={() => setDateValue(dayjs())}
+                            variant="outline"
+                            size="sm"
+                            className="shrink-0 px-3 whitespace-nowrap"
+                          >
+                            Now
+                          </Button>
+                        </div>
+                      </Field>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <Field>
+                        <FieldLabel htmlFor="inTime" className="text-gray-900 font-semibold">In Time</FieldLabel>
+                        <div className="flex gap-2">
+                          <TimePicker
+                            value={inTimeValue}
+                            onChange={(newValue) => setInTimeValue(newValue)}
+                            slotProps={{
+                              textField: {
+                                size: 'small',
+                                fullWidth: true,
+                                sx: {
+                                  '& .MuiOutlinedInput-root': {
+                                    borderRadius: '0.375rem',
+                                    fontSize: '0.875rem',
+                                  },
+                                },
+                              },
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            onClick={() => setInTimeValue(dayjs())}
+                            variant="outline"
+                            size="sm"
+                            className="shrink-0 px-3 whitespace-nowrap"
+                          >
+                            Now
+                          </Button>
+                        </div>
+                      </Field>
+
+                      <Field>
+                        <FieldLabel htmlFor="outTime" className="text-gray-900 font-semibold">Out Time</FieldLabel>
+                        <div className="flex gap-2">
+                          <TimePicker
+                            value={outTimeValue}
+                            onChange={(newValue) => setOutTimeValue(newValue)}
+                            slotProps={{
+                              textField: {
+                                size: 'small',
+                                fullWidth: true,
+                                sx: {
+                                  '& .MuiOutlinedInput-root': {
+                                    borderRadius: '0.375rem',
+                                    fontSize: '0.875rem',
+                                  },
+                                },
+                              },
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            onClick={() => setOutTimeValue(dayjs())}
+                            variant="outline"
+                            size="sm"
+                            className="shrink-0 px-3 whitespace-nowrap"
+                          >
+                            Now
+                          </Button>
+                        </div>
+                      </Field>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <Field data-invalid={!!fieldErrors.binNo}>
+                        <FieldLabel htmlFor="binNo" className="text-gray-900 font-semibold">Bin No</FieldLabel>
+                        <Input
+                          id="binNo"
+                          name="binNo"
+                          value={formData.binNo}
+                          onChange={handleInputChange}
+                          placeholder="Enter bin number"
+                          required
+                          aria-invalid={!!fieldErrors.binNo}
+                        />
+                        {fieldErrors.binNo && (
+                          <FieldError>{fieldErrors.binNo}</FieldError>
+                        )}
+                      </Field>
+
+                      <Field data-invalid={!!fieldErrors.modelNo}>
+                        <FieldLabel htmlFor="modelNo" className="text-gray-900 font-semibold">Model No</FieldLabel>
+                        <Input
+                          id="modelNo"
+                          name="modelNo"
+                          value={formData.modelNo}
+                          onChange={handleInputChange}
+                          placeholder="Enter model number"
+                          required
+                          aria-invalid={!!fieldErrors.modelNo}
+                        />
+                        {fieldErrors.modelNo && (
+                          <FieldError>{fieldErrors.modelNo}</FieldError>
+                        )}
+                      </Field>
+                    </div>
+
+                    <Field data-invalid={!!fieldErrors.chassisNo}>
+                      <FieldLabel htmlFor="chassisNo" className="text-gray-900 font-semibold">Chassis No</FieldLabel>
+                      <Input
+                        id="chassisNo"
+                        name="chassisNo"
+                        value={formData.chassisNo}
+                        onChange={handleInputChange}
+                        placeholder="Enter chassis number"
+                        required
+                        aria-invalid={!!fieldErrors.chassisNo}
+                      />
+                      {fieldErrors.chassisNo && (
+                        <FieldError>{fieldErrors.chassisNo}</FieldError>
+                      )}
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="type" className="text-gray-900 font-semibold">Type</FieldLabel>
                       <Select
-                        value={formData.shift}
-                        onValueChange={(value) => handleSelectChange("shift", value)}
+                        value={formData.type}
+                        onValueChange={(value) => handleSelectChange("type", value)}
                       >
-                        <SelectTrigger id="shift" className="w-full">
-                          <SelectValue placeholder="Select shift" />
+                        <SelectTrigger id="type" className="w-full">
+                          <SelectValue placeholder="Select type" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Day Shift">Day Shift</SelectItem>
-                          <SelectItem value="Night Shift">Night Shift</SelectItem>
+                          <SelectItem value="PTS">PTS</SelectItem>
+                          <SelectItem value="PDI">PDI</SelectItem>
                         </SelectContent>
                       </Select>
                     </Field>
 
                     <Field>
-                      <FieldLabel htmlFor="date" className="text-gray-900 font-semibold">Date</FieldLabel>
-                      <DatePicker
-                        value={dateValue}
-                        onChange={(newValue) => setDateValue(newValue)}
-                        slotProps={{
-                          textField: {
-                            size: 'small',
-                            fullWidth: true,
-                            sx: {
-                              '& .MuiOutlinedInput-root': {
-                                borderRadius: '0.375rem',
-                                fontSize: '0.875rem',
-                              },
-                            },
-                          },
-                        }}
-                      />
-                    </Field>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <Field>
-                      <FieldLabel htmlFor="inTime" className="text-gray-900 font-semibold">In Time</FieldLabel>
-                      <TimePicker
-                        value={inTimeValue}
-                        onChange={(newValue) => setInTimeValue(newValue)}
-                        slotProps={{
-                          textField: {
-                            size: 'small',
-                            fullWidth: true,
-                            sx: {
-                              '& .MuiOutlinedInput-root': {
-                                borderRadius: '0.375rem',
-                                fontSize: '0.875rem',
-                              },
-                            },
-                          },
-                        }}
-                      />
-                    </Field>
-
-                    <Field>
-                      <FieldLabel htmlFor="outTime" className="text-gray-900 font-semibold">Out Time</FieldLabel>
-                      <TimePicker
-                        value={outTimeValue}
-                        onChange={(newValue) => setOutTimeValue(newValue)}
-                        slotProps={{
-                          textField: {
-                            size: 'small',
-                            fullWidth: true,
-                            sx: {
-                              '& .MuiOutlinedInput-root': {
-                                borderRadius: '0.375rem',
-                                fontSize: '0.875rem',
-                              },
-                            },
-                          },
-                        }}
-                      />
-                    </Field>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <Field data-invalid={!!fieldErrors.binNo}>
-                      <FieldLabel htmlFor="binNo" className="text-gray-900 font-semibold">Bin No</FieldLabel>
+                      <FieldLabel htmlFor="productionInchargeFromVBCL" className="text-gray-900 font-semibold">
+                        Production incharge name from VBCL
+                      </FieldLabel>
                       <Input
-                        id="binNo"
-                        name="binNo"
-                        value={formData.binNo}
+                        id="productionInchargeFromVBCL"
+                        name="productionInchargeFromVBCL"
+                        value={formData.productionInchargeFromVBCL}
                         onChange={handleInputChange}
-                        placeholder="Enter bin number"
-                        required
-                        aria-invalid={!!fieldErrors.binNo}
+                        placeholder="Enter production incharge name"
                       />
-                      {fieldErrors.binNo && (
-                        <FieldError>{fieldErrors.binNo}</FieldError>
-                      )}
                     </Field>
+                  </FieldGroup>
+                </FieldSet>
 
-                    <Field data-invalid={!!fieldErrors.modelNo}>
-                      <FieldLabel htmlFor="modelNo" className="text-gray-900 font-semibold">Model No</FieldLabel>
-                      <Input
-                        id="modelNo"
-                        name="modelNo"
-                        value={formData.modelNo}
-                        onChange={handleInputChange}
-                        placeholder="Enter model number"
-                        required
-                        aria-invalid={!!fieldErrors.modelNo}
-                      />
-                      {fieldErrors.modelNo && (
-                        <FieldError>{fieldErrors.modelNo}</FieldError>
-                      )}
-                    </Field>
-                  </div>
+                <FieldSeparator className="my-6" />
 
-                  <Field data-invalid={!!fieldErrors.chassisNo}>
-                    <FieldLabel htmlFor="chassisNo" className="text-gray-900 font-semibold">Chassis No</FieldLabel>
-                    <Input
-                      id="chassisNo"
-                      name="chassisNo"
-                      value={formData.chassisNo}
-                      onChange={handleInputChange}
-                      placeholder="Enter chassis number"
-                      required
-                      aria-invalid={!!fieldErrors.chassisNo}
-                    />
-                    {fieldErrors.chassisNo && (
-                      <FieldError>{fieldErrors.chassisNo}</FieldError>
-                    )}
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="type" className="text-gray-900 font-semibold">Type</FieldLabel>
-                    <Select
-                      value={formData.type}
-                      onValueChange={(value) => handleSelectChange("type", value)}
-                    >
-                      <SelectTrigger id="type" className="w-full">
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="PTS">PTS</SelectItem>
-                        <SelectItem value="PDI">PDI</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="productionInchargeFromVBCL" className="text-gray-900 font-semibold">
-                      Production incharge name from VBCL
-                    </FieldLabel>
-                    <Input
-                      id="productionInchargeFromVBCL"
-                      name="productionInchargeFromVBCL"
-                      value={formData.productionInchargeFromVBCL}
-                      onChange={handleInputChange}
-                      placeholder="Enter production incharge name"
-                    />
-                  </Field>
-                </FieldGroup>
-              </FieldSet>
-
-              <FieldSeparator className="my-6" />
-
-              <FieldSet className="bg-gradient-to-br from-[#FEA418]/10 to-[#FEA418]/20 rounded-lg p-4 sm:p-6 border border-[#FEA418]/30">
-                <FieldLegend className="text-[#FEA418] font-bold text-lg mb-2">Man Power Details</FieldLegend>
-                <FieldDescription className="text-[#FEA418]/80 mb-4">
-                  Enter the number of personnel for each role
-                </FieldDescription>
-                <FieldGroup className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <FieldSet className="bg-gradient-to-br from-[#FEA418]/10 to-[#FEA418]/20 rounded-lg p-3 sm:p-6 border border-[#FEA418]/30">
+                  <FieldLegend className="text-[#FEA418] font-bold text-lg mb-2">Man Power Details</FieldLegend>
+                  <FieldDescription className="text-[#FEA418]/80 mb-4">
+                    Enter the number of personnel for each role
+                  </FieldDescription>
+                  <FieldGroup className="space-y-4">
                     <Field>
-                      <FieldLabel htmlFor="electrician">Electrician</FieldLabel>
-                      <Input
-                        id="electrician"
-                        name="electrician"
-                        type="number"
-                        value={formData.electrician}
-                        onChange={handleInputChange}
-                        min="0"
-                        placeholder="0"
+                      <FieldLabel>Employees</FieldLabel>
+                      <FieldDescription>
+                        Select employees working on this vehicle entry. Employee counts will be automatically split if assigned to multiple entries on the same date/shift.
+                      </FieldDescription>
+                      <EmployeeSelector
+                        selectedEmployees={selectedEmployees}
+                        onEmployeesChange={setSelectedEmployees}
                       />
                     </Field>
+                  </FieldGroup>
+                </FieldSet>
 
+                <FieldSeparator className="my-6" />
+
+                <FieldSet className="bg-gray-50/50 rounded-lg p-3 sm:p-6 border border-gray-200">
+                  <FieldGroup>
                     <Field>
-                      <FieldLabel htmlFor="fitter">Fitter</FieldLabel>
-                      <Input
-                        id="fitter"
-                        name="fitter"
-                        type="number"
-                        value={formData.fitter}
+                      <FieldLabel htmlFor="remarks" className="text-gray-900 font-semibold">Remarks</FieldLabel>
+                      <Textarea
+                        id="remarks"
+                        name="remarks"
+                        value={formData.remarks}
                         onChange={handleInputChange}
-                        min="0"
-                        placeholder="0"
+                        placeholder="Add any additional comments or notes"
+                        rows={3}
+                        className="resize-none"
                       />
+                      <FieldDescription>
+                        Optional notes or comments about this entry
+                      </FieldDescription>
                     </Field>
+                  </FieldGroup>
+                </FieldSet>
 
-                    <Field>
-                      <FieldLabel htmlFor="painter">Painter</FieldLabel>
-                      <Input
-                        id="painter"
-                        name="painter"
-                        type="number"
-                        value={formData.painter}
-                        onChange={handleInputChange}
-                        min="0"
-                        placeholder="0"
-                      />
-                    </Field>
-
-                    <Field>
-                      <FieldLabel htmlFor="helper">Helper</FieldLabel>
-                      <Input
-                        id="helper"
-                        name="helper"
-                        type="number"
-                        value={formData.helper}
-                        onChange={handleInputChange}
-                        min="0"
-                        placeholder="0"
-                      />
-                    </Field>
-                  </div>
-                </FieldGroup>
-              </FieldSet>
-
-              <FieldSeparator className="my-6" />
-
-              <FieldSet className="bg-gray-50/50 rounded-lg p-4 sm:p-6 border border-gray-200">
-                <FieldGroup>
-                  <Field>
-                    <FieldLabel htmlFor="remarks" className="text-gray-900 font-semibold">Remarks</FieldLabel>
-                    <Textarea
-                      id="remarks"
-                      name="remarks"
-                      value={formData.remarks}
-                      onChange={handleInputChange}
-                      placeholder="Add any additional comments or notes"
-                      rows={3}
-                      className="resize-none"
-                    />
-                    <FieldDescription>
-                      Optional notes or comments about this entry
-                    </FieldDescription>
-                  </Field>
-                </FieldGroup>
-              </FieldSet>
-
-            </form>
+              </form>
             </div>
           </div>
 
@@ -634,33 +652,35 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
       </div>
 
       {/* Submit Confirmation Modal */}
-      {showSubmitConfirm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-[60]">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-4 sm:p-6 mx-2 border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirm Submit</h3>
-            <p className="text-gray-600 mb-4">
-              Are you sure you want to submit this entry? Once submitted, it will be marked as completed and synced to Google Sheets.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                onClick={() => setShowSubmitConfirm(false)}
-                variant="outline"
-                className="flex-1 w-full sm:w-auto"
-                disabled={loading}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSubmit}
-                className="flex-1 w-full sm:w-auto"
-                disabled={loading}
-              >
-                {loading ? "Submitting..." : "Confirm Submit"}
-              </Button>
+      {
+        showSubmitConfirm && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-[60]">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-4 sm:p-6 mx-2 border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirm Submit</h3>
+              <p className="text-gray-600 mb-4">
+                Are you sure you want to submit this entry? Once submitted, it will be marked as completed and synced to Google Sheets.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  onClick={() => setShowSubmitConfirm(false)}
+                  variant="outline"
+                  className="flex-1 w-full sm:w-auto"
+                  disabled={loading}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  className="flex-1 w-full sm:w-auto"
+                  disabled={loading}
+                >
+                  {loading ? "Submitting..." : "Confirm Submit"}
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </LocalizationProvider>
+        )
+      }
+    </LocalizationProvider >
   );
 }

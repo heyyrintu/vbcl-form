@@ -57,7 +57,7 @@ function Button({
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement | HTMLElement>) => {
     const target = e.currentTarget as HTMLElement
-    
+
     if (isGradient && target) {
       const rect = target.getBoundingClientRect()
       const x = e.clientX - rect.left
@@ -79,7 +79,7 @@ function Button({
 
     props.onClick?.(e as any)
   }
-  
+
   return (
     <Comp
       ref={buttonRef as any}
@@ -113,7 +113,7 @@ function Button({
           ))}
         </>
       )}
-      <span className={isGradient ? "relative z-10 drop-shadow-sm" : ""}>{children}</span>
+      <span className={isGradient ? "relative z-10 drop-shadow-sm flex items-center gap-2" : ""}>{children}</span>
     </Comp>
   )
 }

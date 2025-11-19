@@ -1,9 +1,10 @@
 "use client";
 import { cn } from "@/lib/utils";
-import React, { useState, createContext, useContext } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import React, { useState, createContext, useContext, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { IconMenu2, IconX } from "@tabler/icons-react";
 import Link from "next/link";
+import { createPortal } from "react-dom";
 
 interface Links {
   label: string;
@@ -85,39 +86,66 @@ export const DesktopSidebar = ({
   children,
   ...props
 }: React.ComponentProps<typeof motion.div>) => {
-  const { open, setOpen, animate } = useSidebar();
+  const { animate } = useSidebar();
+  const [isHovered, setIsHovered] = useState(false);
+  
   return (
     <>
       <motion.div
         className={cn(
-          "h-full hidden md:flex md:flex-col w-[300px] shrink-0 px-4 py-4 backdrop-blur-md relative",
+          "h-full hidden md:flex md:flex-col w-[300px] shrink-0 px-4 py-4 backdrop-blur-md relative z-50",
           className
         )}
         style={{
           background: 'linear-gradient(to bottom right, rgba(224, 30, 31, 0.2), rgba(254, 165, 25, 0.2))',
         }}
         animate={{
-          width: animate ? (open ? "300px" : "60px") : "300px",
-          paddingLeft: animate ? (open ? "16px" : "8px") : "16px",
-          paddingRight: animate ? (open ? "16px" : "8px") : "16px",
+          width: animate ? (isHovered ? "300px" : "60px") : "300px",
+          paddingLeft: animate ? (isHovered ? "16px" : "8px") : "16px",
+          paddingRight: animate ? (isHovered ? "16px" : "8px") : "16px",
         }}
         transition={{
           duration: 0.3,
           ease: "easeInOut",
         }}
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         {...props}
       >
-        <div 
+        <div
           className="absolute bottom-0 left-0 right-0 h-[1px]"
           style={{
             background: 'linear-gradient(to right, rgba(224, 30, 31, 0.35), rgba(254, 165, 25, 0.35))'
           }}
         />
-        {children}
+        <DesktopSidebarContent isHovered={isHovered}>
+          {children}
+        </DesktopSidebarContent>
       </motion.div>
     </>
+  );
+};
+
+const DesktopSidebarContent = ({ 
+  children, 
+  isHovered 
+}: { 
+  children: React.ReactNode; 
+  isHovered: boolean;
+}) => {
+  const { animate } = useSidebar();
+  
+  // Create a context value that uses isHovered for desktop
+  const contextValue = {
+    open: isHovered,
+    setOpen: () => {},
+    animate: animate,
+  };
+  
+  return (
+    <SidebarContext.Provider value={contextValue}>
+      {children}
+    </SidebarContext.Provider>
   );
 };
 
@@ -127,18 +155,25 @@ export const MobileSidebar = ({
   ...props
 }: React.ComponentProps<"div">) => {
   const { open, setOpen } = useSidebar();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <>
       <div
         className={cn(
-          "h-10 flex flex-row md:hidden items-center justify-between w-full px-4 py-4 backdrop-blur-md relative"
+          "h-10 flex flex-row md:hidden items-center justify-between w-full px-4 py-4 backdrop-blur-md relative",
+          className
         )}
         style={{
           background: 'linear-gradient(to right, rgba(224, 30, 31, 0.2), rgba(254, 165, 25, 0.2))',
         }}
         {...props}
       >
-        <div 
+        <div
           className="absolute bottom-0 left-0 right-0 h-[1px]"
           style={{
             background: 'linear-gradient(to right, rgba(224, 30, 31, 0.35), rgba(254, 165, 25, 0.35))'
@@ -146,10 +181,12 @@ export const MobileSidebar = ({
         />
         <div className="flex justify-end z-20 w-full">
           <IconMenu2
-            className="text-white dark:text-white"
+            className="text-white dark:text-white cursor-pointer"
             onClick={() => setOpen(!open)}
           />
         </div>
+      </div>
+      {mounted && createPortal(
         <AnimatePresence>
           {open && (
             <motion.div
@@ -161,24 +198,26 @@ export const MobileSidebar = ({
                 ease: "easeInOut",
               }}
               className={cn(
-                "fixed h-full w-full inset-0 p-10 flex flex-col justify-between z-[100] backdrop-blur-md",
+                "fixed h-full w-full inset-0 p-10 flex flex-col justify-between z-[9999] backdrop-blur-md bg-white dark:bg-gray-900",
                 className
               )}
               style={{
-                background: 'linear-gradient(to bottom right, rgba(224, 30, 31, 0.2), rgba(254, 165, 25, 0.2))'
+                background:
+                  "linear-gradient(to bottom right, rgba(224, 30, 31, 0.2), rgba(254, 165, 25, 0.2))",
               }}
             >
               <div
-                className="absolute right-10 top-10 z-50 text-white dark:text-white"
-                onClick={() => setOpen(!open)}
+                className="absolute right-10 top-10 z-50 text-white dark:text-white cursor-pointer"
+                onClick={() => setOpen(false)}
               >
                 <IconX />
               </div>
               {children}
             </motion.div>
           )}
-        </AnimatePresence>
-      </div>
+        </AnimatePresence>,
+        document.body
+      )}
     </>
   );
 };
@@ -235,8 +274,8 @@ export const SidebarLink = ({
         onClick={handleClick}
         className={cn(
           "flex items-center justify-start gap-2 group/sidebar px-3 py-2 rounded-lg cursor-pointer transition-all duration-300",
-          isActive 
-            ? "bg-gradient-to-r from-[#E01E1F] to-[#FEA519] text-white font-bold" 
+          isActive
+            ? "bg-gradient-to-r from-[#E01E1F] to-[#FEA519] text-white font-bold"
             : "text-neutral-700 dark:text-neutral-200 hover:bg-gray-200 dark:hover:bg-neutral-700",
           className
         )}
@@ -252,8 +291,8 @@ export const SidebarLink = ({
       href={link.href}
       className={cn(
         "flex items-center justify-start gap-2 group/sidebar px-3 py-2 rounded-lg cursor-pointer transition-all duration-300",
-        isActive 
-          ? "bg-gradient-to-r from-[#E01E1F] to-[#FEA519] text-white font-bold" 
+        isActive
+          ? "bg-gradient-to-r from-[#E01E1F] to-[#FEA519] text-white font-bold"
           : "text-neutral-700 dark:text-neutral-200 hover:bg-gray-200 dark:hover:bg-neutral-700",
         className
       )}

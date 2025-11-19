@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { getCurrentMonthRange } from "@/lib/utils";
 import { syncRecordToSheet } from "@/lib/googleSheets";
+import { assignEmployeesToRecord } from "@/lib/employeeUtils";
 
 // GET - Fetch all records (with optional status filter)
 export async function GET(request: Request) {
@@ -23,6 +24,20 @@ export async function GET(request: Request) {
         { status: "asc" }, // PENDING first, then COMPLETED
         { updatedAt: "desc" },
       ],
+      include: {
+        employeeAssignments: {
+          include: {
+            employee: {
+              select: {
+                id: true,
+                employeeId: true,
+                name: true,
+                role: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     return NextResponse.json(records);
@@ -73,6 +88,16 @@ export async function POST(request: Request) {
         remarks: data.remarks || null,
       },
     });
+
+    // Assign employees if provided
+    if (data.employeeIds && Array.isArray(data.employeeIds) && data.employeeIds.length > 0 && data.date && data.shift) {
+      await assignEmployeesToRecord(
+        record.id,
+        data.employeeIds,
+        data.date,
+        data.shift
+      );
+    }
 
     return NextResponse.json(record, { status: 201 });
   } catch (error) {

@@ -8,6 +8,7 @@ import {
   IconSettings,
   IconUserBolt,
   IconTable,
+  IconUsers,
 } from "@tabler/icons-react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,20 @@ export default function AppSidebar() {
       href: "/all-entries",
       icon: (
         <IconTable className="h-5 w-5 shrink-0" />
+      ),
+    },
+    {
+      label: "All Employees",
+      href: "/employees",
+      icon: (
+        <IconUsers className="h-5 w-5 shrink-0" />
+      ),
+    },
+    {
+      label: "Employee Attendance",
+      href: "/employee-attendance",
+      icon: (
+        <IconUserBolt className="h-5 w-5 shrink-0" />
       ),
     },
     {
