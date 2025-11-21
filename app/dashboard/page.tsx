@@ -6,7 +6,6 @@ import { signOut } from "next-auth/react";
 import RecordForm from "@/components/RecordForm";
 import RecordList from "@/components/RecordList";
 import AppSidebar from "@/components/AppSidebar";
-import { BGPattern } from "@/components/ui/bg-pattern";
 import { ShapeLandingHero } from "@/components/ui/shape-landing-hero";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -148,9 +147,6 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto relative z-10">
-        {/* Subtle Grid Pattern Overlay */}
-        <BGPattern variant="grid" mask="fade-edges" size={24} fill="rgba(222, 28, 28, 0.1)" className="absolute inset-0 pointer-events-none dark:opacity-30" />
-
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 relative">
           {/* Hero Section */}
           <div className="relative mb-8 sm:mb-10 p-[1px] rounded-3xl overflow-hidden group" style={{ background: 'linear-gradient(to right, rgba(224, 30, 31, 0.7), rgba(254, 165, 25, 0.7))' }}>
