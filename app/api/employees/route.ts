@@ -98,12 +98,14 @@ export async function POST(request: Request) {
     }
 
     // Generate employee ID - Format: DLPL/{role_code}/{number}
-    const roleCode = {
+    type RoleType = "Electrician" | "Fitter" | "Painter" | "Helper";
+    const roleCodeMap: Record<RoleType, string> = {
       "Electrician": "E",
       "Fitter": "F",
       "Painter": "P",
       "Helper": "H"
-    }[data.role];
+    };
+    const roleCode = roleCodeMap[data.role as RoleType];
 
     // Get the highest number used globally across all employees
     const allEmployees = await prisma.employee.findMany({
