@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import EmployeeTable from "@/components/EmployeeTable";
 import AppSidebar from "@/components/AppSidebar";
-import { ShapeLandingHero } from "@/components/ui/shape-landing-hero";
+import { BGPattern } from "@/components/ui/bg-pattern";
 import { cn } from "@/lib/utils";
 import { Users, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,11 +11,13 @@ import { Button } from "@/components/ui/button";
 export default function EmployeesPage() {
   return (
     <div className={cn("flex flex-col md:flex-row w-full h-screen overflow-hidden bg-gray-50 dark:bg-gray-950 transition-colors duration-300")}>
-      <ShapeLandingHero className="fixed inset-0 z-0 opacity-60 dark:opacity-40" />
       <AppSidebar />
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto relative z-10">
+        {/* Subtle Grid Pattern Overlay */}
+        <BGPattern variant="grid" mask="fade-edges" size={24} fill="rgba(222, 28, 28, 0.1)" className="absolute inset-0 pointer-events-none dark:opacity-30" />
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 relative">
           {/* Hero Section */}
           <div className="relative mb-8 sm:mb-10 p-[1px] rounded-3xl overflow-hidden group" style={{ background: 'linear-gradient(to right, rgba(224, 30, 31, 0.7), rgba(254, 165, 25, 0.7))' }}>
