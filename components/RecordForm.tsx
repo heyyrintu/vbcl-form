@@ -31,7 +31,9 @@ import EmployeeSelector from "@/components/EmployeeSelector";
 
 interface Employee {
   id: string;
+  employeeId: string;
   name: string;
+  role: string;
 }
 
 interface RecordFormData {

@@ -72,11 +72,11 @@ export const Sidebar = ({
   );
 };
 
-export const SidebarBody = (props: React.ComponentProps<typeof motion.div>) => {
+export const SidebarBody = ({ children, ...props }: React.ComponentProps<typeof motion.div> & { children: React.ReactNode }) => {
   return (
     <>
-      <DesktopSidebar {...props} />
-      <MobileSidebar {...(props as React.ComponentProps<"div">)} />
+      <DesktopSidebar {...props}>{children}</DesktopSidebar>
+      <MobileSidebar {...(props as React.ComponentProps<"div">)}>{children}</MobileSidebar>
     </>
   );
 };
@@ -85,7 +85,7 @@ export const DesktopSidebar = ({
   className,
   children,
   ...props
-}: React.ComponentProps<typeof motion.div>) => {
+}: React.ComponentProps<typeof motion.div> & { children: React.ReactNode }) => {
   const { animate } = useSidebar();
   const [isHovered, setIsHovered] = useState(false);
   
