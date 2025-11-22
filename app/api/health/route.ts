@@ -4,8 +4,8 @@ import { prisma } from "@/lib/db";
 // Health check endpoint for Coolify
 export async function GET() {
   try {
-    // Simple database connectivity check
-    await prisma.$queryRaw`SELECT 1`;
+    // Simple database connectivity check - just try to connect
+    await prisma.$connect();
     
     return NextResponse.json(
       {
