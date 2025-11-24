@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true, // Trust the host for production deployments
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET, // Use AUTH_SECRET (NextAuth v5) or fallback to NEXTAUTH_SECRET
   providers: [
     Credentials({
       credentials: {

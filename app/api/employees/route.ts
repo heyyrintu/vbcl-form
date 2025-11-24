@@ -5,7 +5,9 @@ import { auth } from "@/lib/auth";
 // GET - Fetch all employees (with optional search query)
 export async function GET(request: Request) {
   try {
-    const session = await auth();
+    const session = await auth({
+      headers: request.headers,
+    });
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -50,7 +52,9 @@ export async function GET(request: Request) {
 // POST - Create new employee
 export async function POST(request: Request) {
   try {
-    const session = await auth();
+    const session = await auth({
+      headers: request.headers,
+    });
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

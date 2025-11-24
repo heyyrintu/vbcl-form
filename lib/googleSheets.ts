@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 // Initialize Google Sheets API client
 function getGoogleSheetsClient() {
   const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
-  const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  let privateKey = process.env.GOOGLE_PRIVATE_KEY;
   const sheetId = process.env.GOOGLE_SHEET_ID;
 
   if (!clientEmail || !privateKey || !sheetId) {
@@ -12,15 +12,36 @@ function getGoogleSheetsClient() {
     return null;
   }
 
-  const auth = new google.auth.GoogleAuth({
-    credentials: {
-      client_email: clientEmail,
-      private_key: privateKey,
-    },
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  });
+  // Fix private key formatting - handle various newline formats
+  // Replace escaped newlines with actual newlines
+  privateKey = privateKey.replace(/\\n/g, "\n");
+  // If the key doesn't have proper line breaks, try to format it
+  if (!privateKey.includes("\n") && privateKey.includes("-----")) {
+    // If it's all on one line, try to add newlines around the key content
+    privateKey = privateKey.replace(/-----BEGIN PRIVATE KEY-----/, "-----BEGIN PRIVATE KEY-----\n");
+    privateKey = privateKey.replace(/-----END PRIVATE KEY-----/, "\n-----END PRIVATE KEY-----");
+  }
 
-  return { sheets: google.sheets({ version: "v4", auth }), sheetId };
+  // Ensure the private key has proper BEGIN/END markers
+  if (!privateKey.includes("BEGIN PRIVATE KEY") || !privateKey.includes("END PRIVATE KEY")) {
+    console.error("Google Sheets: Invalid private key format - missing BEGIN/END markers");
+    return null;
+  }
+
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: clientEmail,
+        private_key: privateKey,
+      },
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+
+    return { sheets: google.sheets({ version: "v4", auth }), sheetId };
+  } catch (error) {
+    console.error("Google Sheets: Error initializing auth client:", error instanceof Error ? error.message : error);
+    return null;
+  }
 }
 
 export interface RecordData {
