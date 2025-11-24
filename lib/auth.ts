@@ -4,6 +4,7 @@ import { prisma } from "./db";
 import bcrypt from "bcryptjs";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true, // Trust the host for production deployments
   providers: [
     Credentials({
       credentials: {
