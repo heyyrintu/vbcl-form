@@ -8,9 +8,7 @@ import { assignEmployeesToRecord } from "@/lib/employeeUtils";
 // GET - Fetch all records (with optional status filter)
 export async function GET(request: Request) {
   try {
-    const session = await auth({
-      headers: request.headers,
-    });
+    const session = await auth();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -55,9 +53,7 @@ export async function GET(request: Request) {
 // POST - Create new pending record
 export async function POST(request: Request) {
   try {
-    const session = await auth({
-      headers: request.headers,
-    });
+    const session = await auth();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
