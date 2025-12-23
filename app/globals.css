@@ -116,6 +116,7 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -127,6 +128,7 @@
     height: 0;
     opacity: 0.6;
   }
+
   100% {
     width: 300px;
     height: 300px;

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import { X, Plus, User } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 interface Employee {
@@ -228,7 +227,7 @@ export default function EmployeeSelector({
               >
                 <Plus className="w-4 h-4" />
                 <span className="font-medium">
-                  Add "{searchTerm}" as new employee
+                  Add &quot;{searchTerm}&quot; as new employee
                 </span>
               </button>
             ) : (

@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import EmployeeTable from "@/components/EmployeeTable";
 import AppSidebar from "@/components/AppSidebar";
 import { BGPattern } from "@/components/ui/bg-pattern";
 import { cn } from "@/lib/utils";
-import { Users, UserPlus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Users } from "lucide-react";
 
 export default function EmployeesPage() {
   return (

@@ -4,8 +4,8 @@ import { prisma } from "./db";
 import bcrypt from "bcryptjs";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  trustHost: true, // Trust the host for production deployments
-  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET, // Use AUTH_SECRET (NextAuth v5) or fallback to NEXTAUTH_SECRET
+  trustHost: true,
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
   providers: [
     Credentials({
       credentials: {
@@ -34,9 +34,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null;
         }
 
+        // Update lastLoginAt timestamp
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { lastLoginAt: new Date() },
+        });
+
         return {
           id: user.id,
           name: user.username,
+          role: user.role,
+          pageAccess: (user as unknown as { pageAccess?: string[] }).pageAccess || ["dashboard", "employees", "all-entries", "employee-attendance"],
         };
       },
     }),
@@ -46,12 +54,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   callbacks: {
     authorized: async ({ auth }) => {
-      // Logged in users are authenticated, otherwise redirect to login page
       return !!auth;
+    },
+    jwt: async ({ token, user }) => {
+      if (user) {
+        token.role = user.role;
+        token.id = user.id || "";
+        token.pageAccess = (user as unknown as { pageAccess?: string[] }).pageAccess;
+      }
+      return token;
+    },
+    session: async ({ session, token }) => {
+      if (session.user) {
+        session.user.role = token.role as string;
+        session.user.id = token.id as string;
+        session.user.pageAccess = token.pageAccess as string[] || ["dashboard", "employees", "all-entries", "employee-attendance"];
+      }
+      return session;
     },
   },
   session: {
     strategy: "jwt",
   },
 });
+
 

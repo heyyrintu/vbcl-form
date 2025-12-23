@@ -1,27 +1,45 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import React, { useState } from "react";
-import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
+import { Sidebar, SidebarBody, SidebarLink, useSidebar } from "@/components/ui/sidebar";
 import {
-  IconArrowLeft,
   IconBrandTabler,
   IconSettings,
   IconUserBolt,
   IconTable,
   IconUsers,
+  IconLogout,
+  IconShieldCheck,
 } from "@tabler/icons-react";
 import { motion } from "motion/react";
-import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
+import { signOut, useSession } from "next-auth/react";
+import { cn } from "@/lib/utils";
 
 export default function AppSidebar() {
   const pathname = usePathname();
-  const links = [
+  const { data: session } = useSession();
+  const [open, setOpen] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      await signOut({ callbackUrl: "/login", redirect: true });
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
+  const isAdmin = session?.user?.role === "ADMIN";
+  const pageAccess = session?.user?.pageAccess || [];
+
+  // Define all available links with their access key
+  const allLinks = [
     {
       label: "Dashboard",
       href: "/dashboard",
+      accessKey: "dashboard",
       icon: (
         <IconBrandTabler className="h-5 w-5 shrink-0" />
       ),
@@ -29,6 +47,7 @@ export default function AppSidebar() {
     {
       label: "All Entries",
       href: "/all-entries",
+      accessKey: "all-entries",
       icon: (
         <IconTable className="h-5 w-5 shrink-0" />
       ),
@@ -36,6 +55,7 @@ export default function AppSidebar() {
     {
       label: "All Employees",
       href: "/employees",
+      accessKey: "employees",
       icon: (
         <IconUsers className="h-5 w-5 shrink-0" />
       ),
@@ -43,28 +63,36 @@ export default function AppSidebar() {
     {
       label: "Employee Attendance",
       href: "/employee-attendance",
+      accessKey: "employee-attendance",
       icon: (
         <IconUserBolt className="h-5 w-5 shrink-0" />
       ),
     },
+    // Admin-only link
+    ...(isAdmin ? [{
+      label: "Admin Users",
+      href: "/admin/users",
+      accessKey: "admin",
+      icon: (
+        <IconShieldCheck className="h-5 w-5 shrink-0" />
+      ),
+    }] : []),
     {
       label: "Settings",
-      href: "#",
+      href: "/settings",
+      accessKey: "settings", // Always visible
       icon: (
         <IconSettings className="h-5 w-5 shrink-0" />
       ),
     },
-    {
-      label: "Logout",
-      href: "#",
-      icon: (
-        <IconArrowLeft className="h-5 w-5 shrink-0" />
-      ),
-      onClick: () => signOut({ callbackUrl: "/login" }),
-    },
   ];
 
-  const [open, setOpen] = useState(false);
+  // Filter links based on page access (admins see all, settings always visible)
+  const links = allLinks.filter((link) => {
+    if (isAdmin) return true; // Admins see all links
+    if (link.accessKey === "settings") return true; // Settings always visible
+    return pageAccess.includes(link.accessKey);
+  });
 
   return (
     <Sidebar open={open} setOpen={setOpen}>
@@ -76,32 +104,82 @@ export default function AppSidebar() {
               <SidebarLink
                 key={idx}
                 link={link}
-                onClick={link.onClick}
                 isActive={pathname === link.href}
               />
             ))}
           </div>
         </div>
-        <div>
-          <SidebarLink
-            link={{
-              label: "VBCL Alwar",
-              href: "#",
-              icon: (
-                <img
-                  src="https://cdn.dribbble.com/userupload/45188200/file/49510167ef68236a40dd16a5212e595e.png?resize=400x400&vertical=center"
-                  alt="VBCL Alwar"
-                  className="h-10 w-10 shrink-0 rounded-full object-cover"
-                />
-              ),
-            }}
-            isActive={false}
+
+        {/* Profile Section */}
+        <div className="border-t border-neutral-200 dark:border-neutral-700 pt-2">
+          <UserProfile
+            name={session?.user?.name || session?.user?.email || "User"}
+            role={session?.user?.role || "USER"}
+            image={session?.user?.image}
+            onLogout={handleLogout}
           />
         </div>
       </SidebarBody>
     </Sidebar>
   );
 }
+
+const UserProfile = ({ name, role, image, onLogout }: { name: string; role: string; image?: string | null; onLogout: () => void }) => {
+  const { open, animate } = useSidebar();
+
+  return (
+    <div className={cn(
+      "flex items-center gap-2 group/sidebar py-2 rounded-lg transition-all duration-300",
+      open ? "px-2" : "justify-start px-2"
+    )}>
+      <div className="shrink-0 relative">
+        {image ? (
+          <img
+            src={image}
+            alt={name}
+            className="h-8 w-8 rounded-full object-cover border border-neutral-300 dark:border-neutral-600"
+          />
+        ) : (
+          <div className="h-8 w-8 rounded-full bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center border border-neutral-300 dark:border-neutral-600">
+            <span className="text-xs font-bold text-neutral-600 dark:text-neutral-300">
+              {name.substring(0, 2).toUpperCase()}
+            </span>
+          </div>
+        )}
+      </div>
+
+      <motion.div
+        animate={{
+          display: animate ? (open ? "flex" : "none") : "flex",
+          opacity: animate ? (open ? 1 : 0) : 1,
+        }}
+        className="flex flex-1 flex-col overflow-hidden items-start justify-center ml-1"
+      >
+        <span className="text-sm font-medium text-neutral-700 dark:text-neutral-200 truncate w-full text-ellipsis">
+          {name}
+        </span>
+        <span className={cn(
+          "text-[10px] truncate w-full",
+          role === "ADMIN" ? "text-purple-500" : "text-neutral-500"
+        )}>
+          {role}
+        </span>
+      </motion.div>
+
+      <motion.button
+        animate={{
+          display: animate ? (open ? "flex" : "none") : "flex",
+          opacity: animate ? (open ? 1 : 0) : 1,
+        }}
+        onClick={onLogout}
+        className="ml-auto p-1.5 rounded-md hover:bg-red-50 text-neutral-500 hover:text-red-600 transition-colors"
+        title="Logout"
+      >
+        <IconLogout size={18} />
+      </motion.button>
+    </div>
+  );
+};
 
 export const Logo = () => {
   return (
@@ -139,4 +217,3 @@ export const LogoIcon = () => {
     </Link>
   );
 };
-

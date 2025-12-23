@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, Search, Briefcase } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Users, Search, Briefcase, Plus, X, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 interface Employee {
@@ -13,11 +14,20 @@ interface Employee {
 }
 
 export default function EmployeeTable() {
+  const router = useRouter();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("All");
+
+  // Add Employee Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newEmployeeName, setNewEmployeeName] = useState("");
+  const [newEmployeeType, setNewEmployeeType] = useState<"onrole" | "offrole">("offrole");
+  const [newEmployeeRole, setNewEmployeeRole] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   useEffect(() => {
     fetchEmployees();
@@ -81,6 +91,64 @@ export default function EmployeeTable() {
     Helper: employees.filter((e) => e.role === "Helper").length,
   };
 
+  const openModal = () => {
+    setIsModalOpen(true);
+    setNewEmployeeName("");
+    setNewEmployeeType("offrole");
+    setNewEmployeeRole("");
+    setSubmitError("");
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setNewEmployeeName("");
+    setNewEmployeeType("offrole");
+    setNewEmployeeRole("");
+    setSubmitError("");
+  };
+
+  const handleAddEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!newEmployeeName.trim() || !newEmployeeRole) {
+      setSubmitError("Please fill in all fields");
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmitError("");
+
+    try {
+      const response = await fetch("/api/employees", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: newEmployeeName.trim(),
+          role: newEmployeeRole,
+          isActive: newEmployeeType === "onrole",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setSubmitError(data.error || "Failed to add employee");
+        return;
+      }
+
+      // Add the new employee to the list
+      setEmployees((prev) => [...prev, data]);
+      closeModal();
+    } catch (error) {
+      console.error("Error adding employee:", error);
+      setSubmitError("Failed to add employee. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="relative overflow-hidden rounded-2xl">
@@ -112,6 +180,16 @@ export default function EmployeeTable() {
               </p>
             </div>
           </div>
+
+          {/* Add Employee Button */}
+          <button
+            onClick={openModal}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#E01E1F] to-[#FEA519] text-white font-semibold text-sm shadow-lg shadow-red-500/25 hover:shadow-xl hover:shadow-red-500/30 hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#E01E1F] focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">Add Employee</span>
+            <span className="sm:hidden">Add</span>
+          </button>
         </div>
 
         {/* Filters */}
@@ -166,7 +244,8 @@ export default function EmployeeTable() {
                 {filteredEmployees.map((employee) => (
                   <tr
                     key={employee.id}
-                    className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors"
+                    onClick={() => router.push(`/employees/${employee.id}`)}
+                    className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
                   >
                     <td className="py-3 px-4">
                       <span className="font-mono text-sm text-gray-900 dark:text-gray-100 font-medium">
@@ -248,6 +327,209 @@ export default function EmployeeTable() {
           </div>
         )}
       </div>
+
+      {/* Add Employee Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={closeModal}
+          />
+
+          {/* Modal Content */}
+          <div className="relative w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+            {/* Modal Header */}
+            <div className="relative p-6 pb-0">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#E01E1F] to-[#FEA519]" />
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-[#E01E1F] to-[#FEA519]">
+                    <Plus className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">Add New Employee</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Fill in the details below</p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={closeModal}
+                  className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleAddEmployee} className="p-6 space-y-5">
+              {/* Error Message */}
+              {submitError && (
+                <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30">
+                  <p className="text-sm text-red-600 dark:text-red-400">{submitError}</p>
+                </div>
+              )}
+
+              {/* Name Input */}
+              <div className="space-y-2">
+                <label htmlFor="employeeName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Employee Name
+                </label>
+                <Input
+                  id="employeeName"
+                  type="text"
+                  value={newEmployeeName}
+                  onChange={(e) => setNewEmployeeName(e.target.value)}
+                  placeholder="Enter employee name"
+                  className="w-full bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:ring-[#E01E1F] focus:border-[#E01E1F]"
+                  disabled={submitting}
+                />
+              </div>
+
+              {/* Employee Type Radio Buttons */}
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Employee Type
+                </label>
+                <div className="flex gap-4">
+                  {/* Onrole Radio */}
+                  <label
+                    className={`flex-1 relative flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 cursor-pointer transition-all ${newEmployeeType === "onrole"
+                      ? "border-[#E01E1F] bg-red-50 dark:bg-red-900/20"
+                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                      }`}
+                  >
+                    <input
+                      type="radio"
+                      name="employeeType"
+                      value="onrole"
+                      checked={newEmployeeType === "onrole"}
+                      onChange={() => {
+                        setNewEmployeeType("onrole");
+                        setNewEmployeeRole(""); // Reset role when type changes
+                      }}
+                      className="sr-only"
+                      disabled={submitting}
+                    />
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${newEmployeeType === "onrole"
+                      ? "border-[#E01E1F]"
+                      : "border-gray-400"
+                      }`}>
+                      {newEmployeeType === "onrole" && (
+                        <div className="w-2 h-2 rounded-full bg-[#E01E1F]" />
+                      )}
+                    </div>
+                    <span className={`text-sm font-medium ${newEmployeeType === "onrole"
+                      ? "text-[#E01E1F]"
+                      : "text-gray-600 dark:text-gray-400"
+                      }`}>
+                      Onrole
+                    </span>
+                  </label>
+
+                  {/* Offrole Radio */}
+                  <label
+                    className={`flex-1 relative flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 cursor-pointer transition-all ${newEmployeeType === "offrole"
+                      ? "border-[#FEA519] bg-orange-50 dark:bg-orange-900/20"
+                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                      }`}
+                  >
+                    <input
+                      type="radio"
+                      name="employeeType"
+                      value="offrole"
+                      checked={newEmployeeType === "offrole"}
+                      onChange={() => {
+                        setNewEmployeeType("offrole");
+                        setNewEmployeeRole(""); // Reset role when type changes
+                      }}
+                      className="sr-only"
+                      disabled={submitting}
+                    />
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${newEmployeeType === "offrole"
+                      ? "border-[#FEA519]"
+                      : "border-gray-400"
+                      }`}>
+                      {newEmployeeType === "offrole" && (
+                        <div className="w-2 h-2 rounded-full bg-[#FEA519]" />
+                      )}
+                    </div>
+                    <span className={`text-sm font-medium ${newEmployeeType === "offrole"
+                      ? "text-[#FEA519]"
+                      : "text-gray-600 dark:text-gray-400"
+                      }`}>
+                      Offrole
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Role Select - Dynamic based on employee type */}
+              <div className="space-y-2">
+                <label htmlFor="employeeRole" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Role
+                </label>
+                <select
+                  id="employeeRole"
+                  value={newEmployeeRole}
+                  onChange={(e) => setNewEmployeeRole(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-[#E01E1F] focus:border-transparent transition-all"
+                  disabled={submitting}
+                >
+                  <option value="">Select a role</option>
+                  {newEmployeeType === "onrole" ? (
+                    <>
+                      <option value="Supervisor">Supervisor</option>
+                      <option value="Manager">Manager</option>
+                      <option value="Assistant Manager">Assistant Manager</option>
+                      <option value="Senior Associate">Senior Associate</option>
+                      <option value="Associate">Associate</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="Painter">Painter</option>
+                      <option value="Fitter">Fitter</option>
+                      <option value="Electrician">Electrician</option>
+                      <option value="Helper">Helper</option>
+                    </>
+                  )}
+                </select>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+                  disabled={submitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#E01E1F] to-[#FEA519] text-white font-semibold shadow-lg shadow-red-500/25 hover:shadow-xl hover:shadow-red-500/30 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Adding...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      Add Employee
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

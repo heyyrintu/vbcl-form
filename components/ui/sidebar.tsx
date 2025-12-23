@@ -1,6 +1,6 @@
 "use client";
 import { cn } from "@/lib/utils";
-import React, { useState, createContext, useContext, useEffect } from "react";
+import React, { useState, createContext, useContext } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { IconMenu2, IconX } from "@tabler/icons-react";
 import Link from "next/link";
@@ -88,12 +88,12 @@ export const DesktopSidebar = ({
 }: React.ComponentProps<typeof motion.div> & { children: React.ReactNode }) => {
   const { animate } = useSidebar();
   const [isHovered, setIsHovered] = useState(false);
-  
+
   return (
     <>
       <motion.div
         className={cn(
-          "h-full hidden md:flex md:flex-col w-[300px] shrink-0 px-4 py-4 backdrop-blur-md relative z-50",
+          "h-screen hidden md:flex md:flex-col w-[300px] shrink-0 px-4 py-4 backdrop-blur-md relative z-50",
           className
         )}
         style={{
@@ -126,22 +126,22 @@ export const DesktopSidebar = ({
   );
 };
 
-const DesktopSidebarContent = ({ 
-  children, 
-  isHovered 
-}: { 
-  children: React.ReactNode; 
+const DesktopSidebarContent = ({
+  children,
+  isHovered
+}: {
+  children: React.ReactNode;
   isHovered: boolean;
 }) => {
   const { animate } = useSidebar();
-  
+
   // Create a context value that uses isHovered for desktop
   const contextValue = {
     open: isHovered,
-    setOpen: () => {},
+    setOpen: () => { },
     animate: animate,
   };
-  
+
   return (
     <SidebarContext.Provider value={contextValue}>
       {children}
@@ -155,11 +155,7 @@ export const MobileSidebar = ({
   ...props
 }: React.ComponentProps<"div">) => {
   const { open, setOpen } = useSidebar();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const [mounted] = useState<boolean>(() => typeof document !== "undefined");
 
   return (
     <>

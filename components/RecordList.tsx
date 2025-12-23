@@ -2,13 +2,14 @@
 
 import RecordCard from "./RecordCard";
 import { FileX2 } from "lucide-react";
+import type { ProductionRecord } from "@/types/record";
 
 interface RecordListProps {
-  records: any[];
+  records: ProductionRecord[];
   isCompleted?: boolean;
-  onEdit?: (record: any) => void;
-  onSubmit?: (record: any) => void;
-  onCancel?: (record: any) => void;
+  onEdit?: (record: ProductionRecord) => void;
+  onSubmit?: (record: ProductionRecord) => void;
+  onCancel?: (record: ProductionRecord) => void;
 }
 
 export default function RecordList({ records, isCompleted, onEdit, onSubmit, onCancel }: RecordListProps) {

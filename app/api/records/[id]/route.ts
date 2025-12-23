@@ -91,6 +91,7 @@ export async function PATCH(
         record: updatedRecord,
         sheetSyncSuccess: syncResult.success,
         sheetSyncError: syncResult.error,
+        sheetSyncNotConfigured: syncResult.notConfigured,
       });
     } else if (data.action === "cancel" && existingRecord.status === "COMPLETED") {
       // Move back to pending

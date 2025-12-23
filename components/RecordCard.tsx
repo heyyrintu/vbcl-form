@@ -1,7 +1,8 @@
 "use client";
 
-import { formatDateTime, convertTo12Hour } from "@/lib/utils";
+import { convertTo12Hour } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import type { ProductionRecord } from "@/types/record";
 import {
   Calendar,
   Clock,
@@ -18,7 +19,7 @@ import {
 } from "lucide-react";
 
 interface RecordCardProps {
-  record: any;
+  record: ProductionRecord;
   onEdit?: () => void;
   onSubmit?: () => void;
   onCancel?: () => void;
@@ -121,7 +122,7 @@ export default function RecordCard({ record, onEdit, onSubmit, onCancel, isCompl
         </div>
       </div>
 
-      {/* Manpower Section */}
+      {/* Manpower Section - Hidden for now, will be used in future
       <div className="mb-4">
         <div className="flex items-center gap-2 mb-2">
           <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
@@ -163,6 +164,7 @@ export default function RecordCard({ record, onEdit, onSubmit, onCancel, isCompl
           </div>
         </div>
       </div>
+      */}
 
       {/* Remarks Section */}
       {record.remarks && (
@@ -170,7 +172,7 @@ export default function RecordCard({ record, onEdit, onSubmit, onCancel, isCompl
           <p className="text-xs font-bold text-yellow-700 dark:text-yellow-500 mb-1 flex items-center gap-1">
             <AlertCircle className="w-3 h-3" /> Remarks
           </p>
-          <p className="text-xs text-gray-600 dark:text-gray-300 italic break-words">"{record.remarks}"</p>
+          <p className="text-xs text-gray-600 dark:text-gray-300 italic break-words">&ldquo;{record.remarks}&rdquo;</p>
         </div>
       )}
 

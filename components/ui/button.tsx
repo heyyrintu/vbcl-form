@@ -51,12 +51,11 @@ function Button({
   }) {
   const Comp = asChild ? Slot : "button"
   const [ripples, setRipples] = React.useState<Array<{ x: number; y: number; id: number }>>([])
-  const buttonRef = React.useRef<HTMLButtonElement | HTMLElement>(null)
 
   const isGradient = variant === "gradient"
 
-  const handleClick = (e: React.MouseEvent<HTMLButtonElement | HTMLElement>) => {
-    const target = e.currentTarget as HTMLElement
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const target = e.currentTarget
 
     if (isGradient && target) {
       const rect = target.getBoundingClientRect()
@@ -77,12 +76,11 @@ function Button({
       }, 600)
     }
 
-    props.onClick?.(e as any)
+    props.onClick?.(e)
   }
 
   return (
     <Comp
-      ref={buttonRef as any}
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }), isGradient && "group")}
       onClick={handleClick}

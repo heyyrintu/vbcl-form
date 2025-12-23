@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -17,8 +17,6 @@ export const BackgroundGradient = ({
   containerClassName,
   animate = true,
 }: BackgroundGradientProps) => {
-  const [isHovered, setIsHovered] = useState(false);
-
   const variants = {
     initial: {
       backgroundPosition: "0 50%",
@@ -31,8 +29,6 @@ export const BackgroundGradient = ({
   return (
     <div
       className={cn("relative group", containerClassName)}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
       <motion.div
         variants={animate ? variants : undefined}

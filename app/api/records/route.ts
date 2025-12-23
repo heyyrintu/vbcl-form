@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { getCurrentMonthRange } from "@/lib/utils";
-import { syncRecordToSheet } from "@/lib/googleSheets";
 import { assignEmployeesToRecord } from "@/lib/employeeUtils";
 
 // GET - Fetch all records (with optional status filter)

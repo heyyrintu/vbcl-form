@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import AppSidebar from "@/components/AppSidebar";
 import { BGPattern } from "@/components/ui/bg-pattern";
 import { Button } from "@/components/ui/button";
@@ -50,13 +50,7 @@ export default function EmployeeAttendancePage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (selectedDate) {
-      fetchAttendance();
-    }
-  }, [selectedDate, selectedShift]);
-
-  const fetchAttendance = async () => {
+  const fetchAttendance = useCallback(async () => {
     if (!selectedDate) return;
 
     setLoading(true);
@@ -76,7 +70,11 @@ export default function EmployeeAttendancePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedDate, selectedShift]);
+
+  useEffect(() => {
+    fetchAttendance();
+  }, [fetchAttendance]);
 
   const handleSaveAttendance = async () => {
     if (!selectedDate) return;

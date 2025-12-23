@@ -42,7 +42,7 @@ export async function recalculateSplitCounts(
   });
 
   // Update split counts for all assignments
-  const updatePromises: Promise<any>[] = [];
+  const updatePromises: Promise<unknown>[] = [];
 
   records.forEach((record) => {
     record.employeeAssignments.forEach((assignment) => {

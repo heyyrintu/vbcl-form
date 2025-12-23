@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { convertTo12Hour, convertTo24Hour } from "@/lib/utils";
+import { convertTo12Hour } from "@/lib/utils";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { TimePicker } from "@mui/x-date-pickers/TimePicker";
@@ -28,6 +28,7 @@ import {
   FieldSet,
 } from "@/components/ui/field";
 import EmployeeSelector from "@/components/EmployeeSelector";
+import type { ProductionRecord } from "@/types/record";
 
 interface Employee {
   id: string;
@@ -55,7 +56,7 @@ interface RecordFormData {
 }
 
 interface RecordFormProps {
-  existingRecord?: any;
+  existingRecord?: ProductionRecord | null;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -94,8 +95,8 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
         dronaSupervisor: existingRecord.dronaSupervisor || "",
         shift: existingRecord.shift || "Day Shift",
         date: existingRecord.date || "",
-        inTime: convertTo12Hour(existingRecord.inTime),
-        outTime: convertTo12Hour(existingRecord.outTime),
+        inTime: existingRecord.inTime ? convertTo12Hour(existingRecord.inTime) : "",
+        outTime: existingRecord.outTime ? convertTo12Hour(existingRecord.outTime) : "",
         binNo: existingRecord.binNo || "",
         modelNo: existingRecord.modelNo || "",
         chassisNo: existingRecord.chassisNo || "",
@@ -141,8 +142,8 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
             const employees = await response.json();
             setSelectedEmployees(employees);
           }
-        } catch (error) {
-          console.error("Failed to fetch employees for record:", error);
+        } catch {
+          console.error("Failed to fetch employees for record:");
         }
       }
     };
@@ -237,7 +238,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
 
       onSuccess();
       onClose();
-    } catch (error) {
+    } catch {
       setError("Failed to save record. Please try again.");
     } finally {
       setLoading(false);
@@ -299,7 +300,8 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
 
       const result = await response.json();
 
-      if (!result.sheetSyncSuccess && result.sheetSyncError) {
+      // Only show error if it's an actual sync failure, not just not configured
+      if (!result.sheetSyncSuccess && result.sheetSyncError && !result.sheetSyncNotConfigured) {
         setError(`Record submitted but Google Sheets sync failed: ${result.sheetSyncError}`);
         setTimeout(() => {
           onSuccess();
@@ -309,7 +311,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
         onSuccess();
         onClose();
       }
-    } catch (error) {
+    } catch {
       setError("Failed to submit record. Please try again.");
     } finally {
       setLoading(false);
@@ -571,6 +573,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                   </FieldGroup>
                 </FieldSet>
 
+                {/* Man Power Details - Hidden for now, will be used in future
                 <FieldSeparator className="my-6" />
 
                 <FieldSet className="bg-gradient-to-br from-[#FEA418]/10 to-[#FEA418]/20 rounded-lg p-3 sm:p-6 border border-[#FEA418]/30">
@@ -593,6 +596,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                 </FieldSet>
 
                 <FieldSeparator className="my-6" />
+                */}
 
                 <FieldSet className="bg-gray-50/50 rounded-lg p-3 sm:p-6 border border-gray-200">
                   <FieldGroup>

@@ -69,12 +69,12 @@ export interface RecordData {
 }
 
 // Sync record to Google Sheets
-export async function syncRecordToSheet(record: RecordData): Promise<{ success: boolean; error?: string }> {
+export async function syncRecordToSheet(record: RecordData): Promise<{ success: boolean; error?: string; notConfigured?: boolean }> {
   try {
     const client = getGoogleSheetsClient();
     
     if (!client) {
-      return { success: false, error: "Google Sheets not configured" };
+      return { success: false, error: "Google Sheets not configured", notConfigured: true };
     }
 
     const { sheets, sheetId } = client;

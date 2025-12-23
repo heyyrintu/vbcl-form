@@ -1,6 +1,8 @@
+"use server";
+
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 
 // GET - Fetch all employees (with optional search query)
 export async function GET(request: Request) {
@@ -13,31 +15,28 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search");
 
-    const where = search
-      ? {
-          name: {
-            contains: search,
-            mode: "insensitive" as const,
-          },
-        }
-      : {};
-
     const employees = await prisma.employee.findMany({
-      where,
-      orderBy: {
-        employeeId: "asc",
-      },
-      select: {
-        id: true,
-        employeeId: true,
-        name: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      where: search
+        ? {
+          OR: [
+            { name: { contains: search, mode: "insensitive" } },
+            { employeeId: { contains: search, mode: "insensitive" } },
+          ],
+        }
+        : undefined,
+      orderBy: { employeeId: "asc" },
     });
 
-    return NextResponse.json(employees);
+    const formattedEmployees = employees.map((emp) => ({
+      id: emp.id,
+      employeeId: emp.employeeId,
+      name: emp.name,
+      role: emp.role,
+      createdAt: emp.createdAt.toISOString(),
+      updatedAt: emp.updatedAt.toISOString(),
+    }));
+
+    return NextResponse.json(formattedEmployees);
   } catch (error) {
     console.error("Error fetching employees:", error);
     return NextResponse.json(
@@ -65,9 +64,17 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!data.role || !["Electrician", "Fitter", "Painter", "Helper"].includes(data.role)) {
+    // All valid roles (Onrole + Offrole)
+    const validRoles = [
+      // Onrole roles
+      "Supervisor", "Manager", "Assistant Manager", "Senior Associate", "Associate",
+      // Offrole roles
+      "Painter", "Fitter", "Electrician", "Helper"
+    ];
+
+    if (!data.role || !validRoles.includes(data.role)) {
       return NextResponse.json(
-        { error: "Valid role is required (Electrician, Fitter, Painter, Helper)" },
+        { error: `Valid role is required. Allowed: ${validRoles.join(", ")}` },
         { status: 400 }
       );
     }
@@ -83,14 +90,14 @@ export async function POST(request: Request) {
     }
 
     // Check if employee with this name and role already exists
-    const existingEmployee = await prisma.employee.findFirst({
-      where: { 
+    const existing = await prisma.employee.findFirst({
+      where: {
         name: normalizedName,
-        role: data.role
+        role: data.role,
       },
     });
 
-    if (existingEmployee) {
+    if (existing) {
       return NextResponse.json(
         { error: "Employee with this name and role already exists" },
         { status: 400 }
@@ -98,14 +105,20 @@ export async function POST(request: Request) {
     }
 
     // Generate employee ID - Format: DLPL/{role_code}/{number}
-    type RoleType = "Electrician" | "Fitter" | "Painter" | "Helper";
-    const roleCodeMap: Record<RoleType, string> = {
+    const roleCodeMap: Record<string, string> = {
+      // Onrole roles
+      "Supervisor": "S",
+      "Manager": "M",
+      "Assistant Manager": "AM",
+      "Senior Associate": "SA",
+      "Associate": "A",
+      // Offrole roles
       "Electrician": "E",
       "Fitter": "F",
       "Painter": "P",
       "Helper": "H"
     };
-    const roleCode = roleCodeMap[data.role as RoleType];
+    const roleCode = roleCodeMap[data.role] || "X";
 
     // Get the highest number used globally across all employees
     const allEmployees = await prisma.employee.findMany({
@@ -115,14 +128,13 @@ export async function POST(request: Request) {
 
     let nextNumber = 1;
     if (allEmployees.length > 0) {
-      // Extract all numbers from employee IDs and find the max
       const numbers = allEmployees
-        .map(emp => {
-          const match = emp.employeeId.match(/DLPL\/[A-Z]\/(\d+)/);
+        .map((emp) => {
+          const match = String(emp.employeeId).match(/DLPL\/[A-Z]+\/(\d+)/);
           return match ? parseInt(match[1], 10) : 0;
         })
-        .filter(num => num > 0);
-      
+        .filter((num) => num > 0);
+
       if (numbers.length > 0) {
         nextNumber = Math.max(...numbers) + 1;
       }
@@ -130,24 +142,30 @@ export async function POST(request: Request) {
 
     const employeeId = `DLPL/${roleCode}/${String(nextNumber).padStart(2, '0')}`;
 
+    // Determine isActive based on request (defaults to true for onrole, false for offrole)
+    const isActive = typeof data.isActive === "boolean" ? data.isActive : true;
+
     // Create the employee
     const employee = await prisma.employee.create({
       data: {
         employeeId,
         name: normalizedName,
         role: data.role,
-      },
-      select: {
-        id: true,
-        employeeId: true,
-        name: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true,
+        isActive,
       },
     });
 
-    return NextResponse.json(employee, { status: 201 });
+    return NextResponse.json(
+      {
+        id: employee.id,
+        employeeId: employee.employeeId,
+        name: employee.name,
+        role: employee.role,
+        createdAt: employee.createdAt.toISOString(),
+        updatedAt: employee.updatedAt.toISOString(),
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("Error creating employee:", error);
     return NextResponse.json(
@@ -156,4 +174,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

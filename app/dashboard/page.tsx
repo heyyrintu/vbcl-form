@@ -1,31 +1,117 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { signOut } from "next-auth/react";
-import RecordForm from "@/components/RecordForm";
-import RecordList from "@/components/RecordList";
+import { useEffect, useState, useMemo } from "react";
+import { formatDateTime, convertTo12Hour } from "@/lib/utils";
 import AppSidebar from "@/components/AppSidebar";
 import { BGPattern } from "@/components/ui/bg-pattern";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Plus, LayoutDashboard, CheckCircle2, Clock, ChevronDown, ChevronUp } from "lucide-react";
+import { Download, LayoutDashboard, Truck, CalendarDays, Clock, X, Calendar, Users, UserCheck, Wrench, PaintBucket, Zap, HelpingHand } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import * as XLSX from "xlsx";
+import type { ProductionRecord, EmployeeAssignment } from "@/types/record";
+import { useRouter } from "next/navigation";
+import { getSession } from "next-auth/react";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import dayjs, { Dayjs } from "dayjs";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
+
+// Extend dayjs with timezone support
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+// IST Timezone constant
+const IST_TIMEZONE = "Asia/Kolkata";
+
+// Helper function to get today's date in IST
+const getTodayIST = (): string => {
+  return dayjs().tz(IST_TIMEZONE).format("YYYY-MM-DD");
+};
+
+// Helper function to check if a date string is today in IST
+const isToday = (dateStr: string | null): boolean => {
+  if (!dateStr) return false;
+  const today = getTodayIST();
+  return dateStr === today;
+};
+
+// Helper function to get month options for dropdown
+const getMonthOptions = () => {
+  const options = [];
+  const now = dayjs().tz(IST_TIMEZONE);
+  for (let i = 0; i < 4; i++) {
+    const month = now.subtract(i, "month");
+    options.push({
+      value: month.format("YYYY-MM"),
+      label: month.format("MMMM YYYY"),
+      startDate: month.startOf("month").format("YYYY-MM-DD"),
+      endDate: month.endOf("month").format("YYYY-MM-DD"),
+    });
+  }
+  return options;
+};
 
 export default function Dashboard() {
-  const [records, setRecords] = useState<any[]>([]);
+  const router = useRouter();
+  const [records, setRecords] = useState<ProductionRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<"pending" | "completed">("pending");
-  const [showCancelConfirm, setShowCancelConfirm] = useState<string | null>(null);
-  const [showSubmitConfirm, setShowSubmitConfirm] = useState<string | null>(null);
-  const [showAllCompleted, setShowAllCompleted] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<"all" | "PENDING" | "COMPLETED">("all");
+  const [sortBy, setSortBy] = useState<"createdAt" | "updatedAt" | "srNoVehicleCount">("updatedAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  // Date filter states
+  const [fromDate, setFromDate] = useState<Dayjs | null>(null);
+  const [toDate, setToDate] = useState<Dayjs | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
+
+  // Manpower section states
+  const [manpowerFilter, setManpowerFilter] = useState<"total" | "today" | "yesterday">("today");
+  const [manpowerStats, setManpowerStats] = useState({ total: 0, onrole: 0, fitter: 0, painter: 0, electrician: 0, helper: 0 });
+  const [manpowerLoading, setManpowerLoading] = useState(false);
+
+  const [authState, setAuthState] = useState<"checking" | "authenticated" | "unauthenticated">("checking");
+
+  const monthOptions = useMemo(() => getMonthOptions(), []);
+
+  // Check authentication on mount
+  useEffect(() => {
+    let mounted = true;
+
+    const checkAuth = async () => {
+      try {
+        const session = await getSession();
+        if (mounted && session) {
+          setAuthState("authenticated");
+          fetchRecords();
+        } else if (mounted) {
+          setAuthState("unauthenticated");
+          setLoading(false);
+          router.replace("/login");
+        }
+      } catch (error) {
+        console.error("Dashboard: Auth check failed:", error);
+        if (mounted) {
+          setAuthState("unauthenticated");
+          setLoading(false);
+          router.replace("/login");
+        }
+      }
+    };
+
+    checkAuth();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const fetchRecords = async () => {
     try {
       const response = await fetch("/api/records");
       if (response.ok) {
-        const data = await response.json();
+        const data: ProductionRecord[] = await response.json();
         setRecords(data);
       }
     } catch (error) {
@@ -35,313 +121,710 @@ export default function Dashboard() {
     }
   };
 
+  // Handle month selection
+  const handleMonthChange = (value: string) => {
+    setSelectedMonth(value);
+    if (value) {
+      const option = monthOptions.find((o) => o.value === value);
+      if (option) {
+        setFromDate(dayjs(option.startDate));
+        setToDate(dayjs(option.endDate));
+      }
+    }
+  };
+
+  // Clear all date filters
+  const clearDateFilters = () => {
+    setFromDate(null);
+    setToDate(null);
+    setSelectedMonth("");
+  };
+
+  // Filter records by date range
+  const dateFilteredRecords = useMemo(() => {
+    return records.filter((record) => {
+      if (!fromDate && !toDate) return true;
+
+      const recordDate = record.date;
+      if (!recordDate) return true; // Include records without date if no filter
+
+      const recordDayjs = dayjs(recordDate);
+
+      if (fromDate && recordDayjs.isBefore(fromDate, "day")) return false;
+      if (toDate && recordDayjs.isAfter(toDate, "day")) return false;
+
+      return true;
+    });
+  }, [records, fromDate, toDate]);
+
+  // Apply status filter on top of date filter
+  const filteredRecords = dateFilteredRecords.filter((record) => {
+    if (filterStatus === "all") return true;
+    return record.status === filterStatus;
+  });
+
+  const sortedRecords = [...filteredRecords].sort((a, b) => {
+    let aValue: number | string | null = null;
+    let bValue: number | string | null = null;
+
+    if (sortBy === "createdAt" || sortBy === "updatedAt") {
+      aValue = new Date(a[sortBy]).getTime();
+      bValue = new Date(b[sortBy]).getTime();
+    } else {
+      aValue = a[sortBy] ?? 0;
+      bValue = b[sortBy] ?? 0;
+    }
+
+    if (sortOrder === "asc") {
+      return aValue > bValue ? 1 : -1;
+    } else {
+      return aValue < bValue ? 1 : -1;
+    }
+  });
+
+  // Summary card calculations
+  const totalVehicle = useMemo(() => {
+    return dateFilteredRecords.filter((r) => r.status === "COMPLETED").length;
+  }, [dateFilteredRecords]);
+
+  const todaysVehicleCount = useMemo(() => {
+    return records.filter((r) => r.status === "COMPLETED" && isToday(r.date)).length;
+  }, [records]);
+
+  const pendingVehicle = useMemo(() => {
+    return records.filter((r) => r.status === "PENDING").length;
+  }, [records]);
+
+  // Fetch manpower stats
+  const fetchManpowerStats = async () => {
+    setManpowerLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("filter", manpowerFilter);
+
+      // If using page date filter (when manpower filter would use it)
+      if (manpowerFilter !== "total" && manpowerFilter !== "today" && manpowerFilter !== "yesterday") {
+        if (fromDate) params.set("fromDate", fromDate.format("YYYY-MM-DD"));
+        if (toDate) params.set("toDate", toDate.format("YYYY-MM-DD"));
+      }
+
+      const response = await fetch(`/api/manpower?${params.toString()}`);
+      if (response.ok) {
+        const data = await response.json();
+        setManpowerStats(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch manpower stats:", error);
+    } finally {
+      setManpowerLoading(false);
+    }
+  };
+
+  // Fetch manpower stats when filter changes
   useEffect(() => {
-    fetchRecords();
-  }, []);
+    if (authState === "authenticated") {
+      fetchManpowerStats();
+    }
+  }, [manpowerFilter, fromDate, toDate, authState]);
 
-  const handleNewEntry = () => {
-    setEditingRecord(null);
-    setShowForm(true);
-  };
-
-  const handleEdit = (record: any) => {
-    setEditingRecord(record);
-    setShowForm(true);
-  };
-
-  const handleCancelRecord = async (recordId: string) => {
-    try {
-      const response = await fetch(`/api/records/${recordId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "cancel" }),
-      });
-
-      if (response.ok) {
-        await fetchRecords();
-        setShowCancelConfirm(null);
-      }
-    } catch (error) {
-      console.error("Failed to cancel record:", error);
+  const handleSort = (field: "createdAt" | "updatedAt" | "srNoVehicleCount") => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(field);
+      setSortOrder("desc");
     }
   };
 
-  const handleSubmitRecord = async (recordId: string) => {
-    try {
-      const response = await fetch(`/api/records/${recordId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "submit" }),
-      });
+  const exportToExcel = () => {
+    const excelData = sortedRecords.map((record) => {
+      const employees = record.employeeAssignments
+        ?.map((assignment: EmployeeAssignment) => `${assignment.employee.name} [${assignment.employee.employeeId}] (${assignment.splitCount.toFixed(2)})`)
+        .join(", ") || "";
 
-      if (response.ok) {
-        const result = await response.json();
-        await fetchRecords();
-        setShowSubmitConfirm(null);
+      return {
+        "Vehicle #": record.srNoVehicleCount || "",
+        "Status": record.status,
+        "Supervisor": record.dronaSupervisor,
+        "Shift": record.shift,
+        "Date": record.date ? new Date(record.date).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "",
+        "In Time": record.inTime ? convertTo12Hour(record.inTime) : "",
+        "Out Time": record.outTime ? convertTo12Hour(record.outTime) : "",
+        "Bin No": record.binNo,
+        "Model No": record.modelNo,
+        "Chassis No": record.chassisNo,
+        "Type": record.type,
+        "Electrician": record.electrician,
+        "Fitter": record.fitter,
+        "Painter": record.painter,
+        "Helper": record.helper,
+        "Production Incharge": record.productionInchargeFromVBCL || "",
+        "Employees": employees,
+        "Remarks": record.remarks || "",
+        "Created At": formatDateTime(record.createdAt),
+        "Last Updated": formatDateTime(record.updatedAt),
+      };
+    });
 
-        // Show success message if Google Sheets sync failed
-        if (!result.sheetSyncSuccess && result.sheetSyncError) {
-          alert(`Record submitted but Google Sheets sync failed: ${result.sheetSyncError}`);
-        }
-      } else {
-        throw new Error("Failed to submit record");
-      }
-    } catch (error) {
-      console.error("Failed to submit record:", error);
-      alert("Failed to submit record. Please try again.");
-    }
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "All Entries");
+
+    const colWidths = Object.keys(excelData[0] || {}).map((key) => ({
+      wch: Math.max(key.length, 15),
+    }));
+    ws["!cols"] = colWidths;
+
+    const filename = `Vehicle_Tracker_Entries_${new Date().toISOString().split("T")[0]}.xlsx`;
+    XLSX.writeFile(wb, filename);
   };
 
-  const handleFormClose = () => {
-    setShowForm(false);
-    setEditingRecord(null);
-  };
-
-  const handleFormSuccess = () => {
-    fetchRecords();
-  };
-
-  const pendingRecords = records.filter((r) => r.status === "PENDING");
-  const completedRecords = records.filter((r) => r.status === "COMPLETED");
-
-  // Group completed records by date
-  const groupedByDate = completedRecords.reduce((acc, record) => {
-    const date = record.date || new Date(record.createdAt).toISOString().split("T")[0];
-    if (!acc[date]) {
-      acc[date] = [];
-    }
-    acc[date].push(record);
-    return acc;
-  }, {} as Record<string, any[]>);
-
-  // Sort dates in descending order (most recent first)
-  const sortedDates = Object.keys(groupedByDate).sort((a, b) => b.localeCompare(a));
-
-  // Get records for the most recent day
-  const mostRecentDate = sortedDates[0] || "";
-  const mostRecentDayRecords = mostRecentDate ? groupedByDate[mostRecentDate] : [];
-
-  // Get all other records (excluding the most recent day)
-  const otherDaysRecords = sortedDates.slice(1).flatMap((date) => groupedByDate[date]);
-
-  // Determine which records to display
-  const displayedCompletedRecords = showAllCompleted
-    ? completedRecords
-    : mostRecentDayRecords;
-
-  if (loading) {
+  if (loading || authState === "checking" || authState === "unauthenticated") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#DE1C1C] mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">
+            {authState === "unauthenticated" ? "Redirecting to login..." : "Loading..."}
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={cn("flex flex-col md:flex-row w-full h-screen overflow-hidden bg-gray-50 dark:bg-gray-950 transition-colors duration-300")}>
-      <AppSidebar />
+    <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <div className={cn("flex flex-col md:flex-row w-full h-screen overflow-hidden bg-gray-50 dark:bg-gray-950 transition-colors duration-300")}>
+        <AppSidebar />
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto relative z-10">
-        {/* Subtle Grid Pattern Overlay */}
-        <BGPattern variant="grid" mask="fade-edges" size={24} fill="rgba(222, 28, 28, 0.1)" className="absolute inset-0 pointer-events-none dark:opacity-30" />
+        {/* Main Content */}
+        <main className="flex-1 overflow-y-auto relative z-10">
+          {/* Subtle Grid Pattern Overlay */}
+          <BGPattern variant="grid" mask="fade-edges" size={24} fill="rgba(222, 28, 28, 0.1)" className="absolute inset-0 pointer-events-none dark:opacity-30" />
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 relative">
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 relative">
-          {/* Hero Section */}
-          <div className="relative mb-8 sm:mb-10 p-[1px] rounded-3xl overflow-hidden group" style={{ background: 'linear-gradient(to right, rgba(224, 30, 31, 0.7), rgba(254, 165, 25, 0.7))' }}>
-            <div className="relative h-full w-full rounded-3xl overflow-hidden bg-white/40 dark:bg-gray-900/40 backdrop-blur-xl">
-              {/* Glassmorphism Background */}
-              <div className="absolute inset-0 bg-white/40 dark:bg-gray-900/40 backdrop-blur-xl shadow-lg rounded-3xl transition-all duration-500 group-hover:shadow-2xl group-hover:bg-white/50 dark:group-hover:bg-gray-900/50" />
+            {/* Hero Section */}
+            <div className="relative mb-6 p-[1px] rounded-3xl overflow-hidden group" style={{ background: 'linear-gradient(to right, rgba(224, 30, 31, 0.7), rgba(254, 165, 25, 0.7))' }}>
+              <div className="relative h-full w-full rounded-3xl overflow-hidden bg-white/40 dark:bg-gray-900/40 backdrop-blur-xl">
+                <div className="absolute inset-0 bg-white/40 dark:bg-gray-900/40 backdrop-blur-xl shadow-lg rounded-3xl transition-all duration-500 group-hover:shadow-2xl group-hover:bg-white/50 dark:group-hover:bg-gray-900/50" />
+                <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/20 rounded-full blur-3xl opacity-60 animate-pulse" />
+                <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-accent/20 rounded-full blur-3xl opacity-60 animate-pulse delay-1000" />
 
-            {/* Decorative Gradient Blobs */}
-            <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/20 rounded-full blur-3xl opacity-60 animate-pulse" />
-            <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-accent/20 rounded-full blur-3xl opacity-60 animate-pulse delay-1000" />
+                <div className="relative z-10 p-6 sm:p-8 flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
+                  <div className="space-y-2">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider mb-2">
+                      <LayoutDashboard className="w-3 h-3" />
+                      Production Records
+                    </div>
+                    <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-gray-900 dark:text-white tracking-tight">
+                      All <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Entries</span>
+                    </h1>
+                    <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 max-w-lg mx-auto md:mx-0">
+                      Complete list of all production records with detailed information and export capabilities.
+                    </p>
+                  </div>
 
-              <div className="relative z-10 p-6 sm:p-8 flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
-              <div className="space-y-2">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider mb-2">
-                  <LayoutDashboard className="w-3 h-3" />
-                  Production Dashboard
+                  {sortedRecords.length > 0 && (
+                    <Button
+                      onClick={exportToExcel}
+                      variant="gradient"
+                      size="lg"
+                      className="w-full sm:w-auto h-12 sm:h-14 px-8 text-lg shadow-xl shadow-primary/20 hover:shadow-primary/40 hover:scale-105 transition-all duration-300 group/btn"
+                    >
+                      <Download className="w-6 h-6 mr-2 group-hover/btn:scale-110 transition-transform duration-300" />
+                      Download Excel
+                    </Button>
+                  )}
                 </div>
-                <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-gray-900 dark:text-white tracking-tight">
-                  Vehicle <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Tracker</span>
-                </h1>
-                <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 max-w-lg mx-auto md:mx-0">
-                  Monitor production flow, track vehicle status, and manage daily entries with ease.
-                </p>
-              </div>
-
-              <Button
-                onClick={handleNewEntry}
-                variant="gradient"
-                size="lg"
-                className="w-full sm:w-auto h-12 sm:h-14 px-8 text-lg shadow-xl shadow-primary/20 hover:shadow-primary/40 hover:scale-105 transition-all duration-300 group/btn"
-              >
-                <Plus className="w-6 h-6 mr-2 group-hover/btn:rotate-90 transition-transform duration-300" />
-                New Entry
-              </Button>
               </div>
             </div>
-          </div>
 
-          {/* Tabs */}
-          <div className="mb-6 sm:mb-8 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
-            <div className="flex items-center gap-6 border-b border-gray-200 dark:border-gray-800/60 min-w-max">
-              <button
-                onClick={() => setActiveTab("pending")}
-                className={`relative pb-4 px-2 font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === "pending"
-                    ? "text-primary"
-                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                  }`}
-              >
-                <Clock className="w-4 h-4" />
-                Pending
-                {pendingRecords.length > 0 && (
-                  <span className="ml-1 py-0.5 px-2 rounded-full text-xs bg-accent/20 text-accent-foreground dark:text-accent font-bold">
-                    {pendingRecords.length}
-                  </span>
-                )}
-                {activeTab === "pending" && (
-                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-t-full" />
-                )}
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab("completed");
-                  setShowAllCompleted(false); // Reset when switching tabs
-                }}
-                className={`relative pb-4 px-2 font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === "completed"
-                    ? "text-primary"
-                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                  }`}
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                Completed
-                {completedRecords.length > 0 && (
-                  <span className="ml-1 py-0.5 px-2 rounded-full text-xs bg-green-500/20 text-green-600 dark:text-green-400 font-bold">
-                    {completedRecords.length}
-                  </span>
-                )}
-                {activeTab === "completed" && (
-                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-t-full" />
-                )}
-              </button>
-            </div>
-          </div>
+            {/* Date Filter Section */}
+            <div className="mb-6 bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+              <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <Calendar className="w-4 h-4 text-primary" />
+                  <span>Date Filter</span>
+                  <span className="text-xs text-gray-500">(IST)</span>
+                </div>
 
-          {/* Records List */}
-          <div className="relative z-10 pb-20 md:pb-0">
-            {activeTab === "pending" ? (
-              <RecordList
-                records={pendingRecords}
-                isCompleted={false}
-                onEdit={handleEdit}
-                onSubmit={(record) => setShowSubmitConfirm(record.id)}
-              />
-            ) : (
-              <>
-                <RecordList
-                  records={displayedCompletedRecords}
-                  isCompleted={true}
-                  onCancel={(record) => setShowCancelConfirm(record.id)}
-                />
-                {!showAllCompleted && otherDaysRecords.length > 0 && (
-                  <div className="mt-8 flex justify-center">
-                    <Button
-                      onClick={() => setShowAllCompleted(true)}
-                      variant="outline"
-                      className="px-6 py-3 text-base font-medium border-2 border-gray-300 dark:border-gray-600 hover:border-[#E01E1F] hover:text-[#E01E1F] transition-all duration-300"
-                    >
-                      <ChevronDown className="w-5 h-5 mr-2" />
-                      Show More ({otherDaysRecords.length} more {otherDaysRecords.length === 1 ? "entry" : "entries"})
-                    </Button>
-                  </div>
-                )}
-                {showAllCompleted && completedRecords.length > mostRecentDayRecords.length && (
-                  <div className="mt-8 flex justify-center">
-                    <Button
-                      onClick={() => {
-                        setShowAllCompleted(false);
-                        // Scroll to top of completed section
-                        window.scrollTo({ top: 0, behavior: "smooth" });
+                <div className="flex flex-wrap gap-3 items-center w-full lg:w-auto">
+                  {/* From Date */}
+                  <div className="flex-1 min-w-[140px] lg:flex-none">
+                    <DatePicker
+                      label="From Date"
+                      value={fromDate}
+                      onChange={(newValue) => {
+                        setFromDate(newValue);
+                        setSelectedMonth("");
                       }}
-                      variant="outline"
-                      className="px-6 py-3 text-base font-medium border-2 border-gray-300 dark:border-gray-600 hover:border-[#E01E1F] hover:text-[#E01E1F] transition-all duration-300"
-                    >
-                      <ChevronUp className="w-5 h-5 mr-2" />
-                      Show Less
-                    </Button>
+                      slotProps={{
+                        textField: {
+                          size: "small",
+                          fullWidth: true,
+                          sx: {
+                            "& .MuiOutlinedInput-root": {
+                              borderRadius: "0.5rem",
+                              fontSize: "0.875rem",
+                              backgroundColor: "white",
+                            },
+                          },
+                        },
+                      }}
+                    />
                   </div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      </main>
 
-      {/* Form Modal */}
-      {showForm && (
-        <RecordForm
-          existingRecord={editingRecord}
-          onClose={handleFormClose}
-          onSuccess={handleFormSuccess}
-        />
-      )}
+                  {/* To Date */}
+                  <div className="flex-1 min-w-[140px] lg:flex-none">
+                    <DatePicker
+                      label="To Date"
+                      value={toDate}
+                      onChange={(newValue) => {
+                        setToDate(newValue);
+                        setSelectedMonth("");
+                      }}
+                      slotProps={{
+                        textField: {
+                          size: "small",
+                          fullWidth: true,
+                          sx: {
+                            "& .MuiOutlinedInput-root": {
+                              borderRadius: "0.5rem",
+                              fontSize: "0.875rem",
+                              backgroundColor: "white",
+                            },
+                          },
+                        },
+                      }}
+                    />
+                  </div>
 
-      {/* Submit Confirmation Modal */}
-      {showSubmitConfirm && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-md w-full p-6 border border-gray-200 dark:border-gray-800">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Confirm Submit</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Are you sure you want to submit this entry? Once submitted, it will be marked as completed and synced to Google Sheets.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowSubmitConfirm(null)}
-                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => showSubmitConfirm && handleSubmitRecord(showSubmitConfirm)}
-                className="flex-1 px-4 py-2 bg-gradient-to-r from-[#E01E1F] to-[#FEA519] text-white rounded-lg hover:shadow-lg transition-all"
-              >
-                Yes, Submit
-              </button>
+                  {/* Month Selector */}
+                  <div className="flex-1 min-w-[160px] lg:flex-none">
+                    <select
+                      value={selectedMonth}
+                      onChange={(e) => handleMonthChange(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                    >
+                      <option value="">Select Month</option>
+                      {monthOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Clear Button */}
+                  {(fromDate || toDate || selectedMonth) && (
+                    <Button
+                      onClick={clearDateFilters}
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0 gap-1 text-gray-600 hover:text-red-600 hover:border-red-300"
+                    >
+                      <X className="w-4 h-4" />
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Summary Cards */}
+            <div className="mb-4 sm:mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+              {/* Total Vehicle Card */}
+              <div className="relative group p-[1px] rounded-xl sm:rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(224, 30, 31, 0.8), rgba(254, 165, 25, 0.8))' }}>
+                <div className="relative h-full bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl p-3 sm:p-5 overflow-hidden transition-all duration-300 group-hover:bg-white/95 dark:group-hover:bg-gray-900/95">
+                  {/* Decorative gradient blob */}
+                  <div className="absolute -top-12 -right-12 w-24 sm:w-32 h-24 sm:h-32 bg-gradient-to-br from-[#DE1C1C]/20 to-[#FEA418]/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500" />
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                      <div className="p-2 sm:p-2.5 bg-gradient-to-br from-[#DE1C1C] to-[#FEA418] rounded-lg sm:rounded-xl shadow-lg shadow-[#DE1C1C]/20">
+                        <Truck className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                      </div>
+                      <span className="text-xs sm:text-sm font-semibold text-gray-600 dark:text-gray-400">Total Vehicle</span>
+                    </div>
+                    <div className="text-3xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#DE1C1C] to-[#FEA418]">{totalVehicle}</div>
+                    <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mt-1 sm:mt-2 font-medium">
+                      {fromDate || toDate ? "In selected range" : "All time processed"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Today's Vehicle Count Card */}
+              <div className="relative group p-[1px] rounded-xl sm:rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(224, 30, 31, 0.8), rgba(254, 165, 25, 0.8))' }}>
+                <div className="relative h-full bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl p-3 sm:p-5 overflow-hidden transition-all duration-300 group-hover:bg-white/95 dark:group-hover:bg-gray-900/95">
+                  {/* Decorative gradient blob */}
+                  <div className="absolute -top-12 -right-12 w-24 sm:w-32 h-24 sm:h-32 bg-gradient-to-br from-[#FEA418]/20 to-[#DE1C1C]/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500" />
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                      <div className="p-2 sm:p-2.5 bg-gradient-to-br from-[#FEA418] to-[#DE1C1C] rounded-lg sm:rounded-xl shadow-lg shadow-[#FEA418]/20">
+                        <CalendarDays className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                      </div>
+                      <span className="text-xs sm:text-sm font-semibold text-gray-600 dark:text-gray-400">Today&apos;s Vehicle</span>
+                    </div>
+                    <div className="text-3xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#FEA418] to-[#DE1C1C]">{todaysVehicleCount}</div>
+                    <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mt-1 sm:mt-2 font-medium">
+                      Processed today ({getTodayIST()})
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pending Vehicle Card */}
+              <div className="relative group p-[1px] rounded-xl sm:rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(254, 165, 25, 0.8), rgba(224, 30, 31, 0.8))' }}>
+                <div className="relative h-full bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl p-3 sm:p-5 overflow-hidden transition-all duration-300 group-hover:bg-white/95 dark:group-hover:bg-gray-900/95">
+                  {/* Decorative gradient blob */}
+                  <div className="absolute -top-12 -right-12 w-24 sm:w-32 h-24 sm:h-32 bg-gradient-to-br from-[#FEA418]/20 to-[#DE1C1C]/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500" />
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                      <div className="p-2 sm:p-2.5 bg-gradient-to-br from-[#FEA418] to-[#DE1C1C] rounded-lg sm:rounded-xl shadow-lg shadow-[#FEA418]/20">
+                        <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                      </div>
+                      <span className="text-xs sm:text-sm font-semibold text-gray-600 dark:text-gray-400">Pending Vehicle</span>
+                    </div>
+                    <div className="text-3xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#FEA418] to-[#DE1C1C]">{pendingVehicle}</div>
+                    <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mt-1 sm:mt-2 font-medium">
+                      Awaiting submission
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Manpower Section */}
+            <div className="mb-4 sm:mb-6">
+              {/* Section Header with Filter */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 sm:w-5 sm:h-5 text-[#DE1C1C]" />
+                  <h2 className="text-base sm:text-lg font-bold text-gray-800 dark:text-gray-200">Manpower Overview</h2>
+                </div>
+                <div className="flex gap-1.5 sm:gap-2">
+                  <button
+                    onClick={() => setManpowerFilter("total")}
+                    className={`px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-semibold rounded-md sm:rounded-lg transition-all ${manpowerFilter === "total"
+                      ? "bg-gradient-to-r from-[#DE1C1C] to-[#FEA418] text-white shadow-md"
+                      : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:border-[#DE1C1C]/50"
+                      }`}
+                  >
+                    Total
+                  </button>
+                  <button
+                    onClick={() => setManpowerFilter("today")}
+                    className={`px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-semibold rounded-md sm:rounded-lg transition-all ${manpowerFilter === "today"
+                      ? "bg-gradient-to-r from-[#DE1C1C] to-[#FEA418] text-white shadow-md"
+                      : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:border-[#DE1C1C]/50"
+                      }`}
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={() => setManpowerFilter("yesterday")}
+                    className={`px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-semibold rounded-md sm:rounded-lg transition-all ${manpowerFilter === "yesterday"
+                      ? "bg-gradient-to-r from-[#DE1C1C] to-[#FEA418] text-white shadow-md"
+                      : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:border-[#DE1C1C]/50"
+                      }`}
+                  >
+                    Yesterday
+                  </button>
+                </div>
+              </div>
+
+              {/* Manpower Cards Grid */}
+              <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
+                {/* Total ManPower */}
+                <div className="relative group p-[1px] rounded-lg sm:rounded-xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(224, 30, 31, 0.6), rgba(254, 165, 25, 0.6))' }}>
+                  <div className="relative h-full bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl p-2.5 sm:p-4 transition-all duration-300 group-hover:bg-white/95">
+                    <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                      <div className="p-1 sm:p-1.5 bg-gradient-to-br from-[#DE1C1C] to-[#FEA418] rounded-md sm:rounded-lg">
+                        <Users className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+                      </div>
+                      <span className="text-[10px] sm:text-xs font-medium text-gray-500 truncate">Total</span>
+                    </div>
+                    <div className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#DE1C1C] to-[#FEA418]">
+                      {manpowerLoading ? "..." : manpowerStats.total}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Onrole Employee */}
+                <div className="relative group p-[1px] rounded-lg sm:rounded-xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(224, 30, 31, 0.6), rgba(254, 165, 25, 0.6))' }}>
+                  <div className="relative h-full bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl p-2.5 sm:p-4 transition-all duration-300 group-hover:bg-white/95">
+                    <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                      <div className="p-1 sm:p-1.5 bg-gradient-to-br from-[#FEA418] to-[#DE1C1C] rounded-md sm:rounded-lg">
+                        <UserCheck className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+                      </div>
+                      <span className="text-[10px] sm:text-xs font-medium text-gray-500 truncate">Onrole</span>
+                    </div>
+                    <div className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#FEA418] to-[#DE1C1C]">
+                      {manpowerLoading ? "..." : manpowerStats.onrole}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Fitter Count */}
+                <div className="relative group p-[1px] rounded-lg sm:rounded-xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(224, 30, 31, 0.6), rgba(254, 165, 25, 0.6))' }}>
+                  <div className="relative h-full bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl p-2.5 sm:p-4 transition-all duration-300 group-hover:bg-white/95">
+                    <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                      <div className="p-1 sm:p-1.5 bg-gradient-to-br from-[#DE1C1C] to-[#FEA418] rounded-md sm:rounded-lg">
+                        <Wrench className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+                      </div>
+                      <span className="text-[10px] sm:text-xs font-medium text-gray-500 truncate">Fitter</span>
+                    </div>
+                    <div className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#DE1C1C] to-[#FEA418]">
+                      {manpowerLoading ? "..." : manpowerStats.fitter}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Painter Count */}
+                <div className="relative group p-[1px] rounded-lg sm:rounded-xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(254, 165, 25, 0.6), rgba(224, 30, 31, 0.6))' }}>
+                  <div className="relative h-full bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl p-2.5 sm:p-4 transition-all duration-300 group-hover:bg-white/95">
+                    <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                      <div className="p-1 sm:p-1.5 bg-gradient-to-br from-[#FEA418] to-[#DE1C1C] rounded-md sm:rounded-lg">
+                        <PaintBucket className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+                      </div>
+                      <span className="text-[10px] sm:text-xs font-medium text-gray-500 truncate">Painter</span>
+                    </div>
+                    <div className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#FEA418] to-[#DE1C1C]">
+                      {manpowerLoading ? "..." : manpowerStats.painter}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Electrician Count */}
+                <div className="relative group p-[1px] rounded-lg sm:rounded-xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(224, 30, 31, 0.6), rgba(254, 165, 25, 0.6))' }}>
+                  <div className="relative h-full bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl p-2.5 sm:p-4 transition-all duration-300 group-hover:bg-white/95">
+                    <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                      <div className="p-1 sm:p-1.5 bg-gradient-to-br from-[#DE1C1C] to-[#FEA418] rounded-md sm:rounded-lg">
+                        <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+                      </div>
+                      <span className="text-[10px] sm:text-xs font-medium text-gray-500 truncate">Electrician</span>
+                    </div>
+                    <div className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#DE1C1C] to-[#FEA418]">
+                      {manpowerLoading ? "..." : manpowerStats.electrician}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Helper Count */}
+                <div className="relative group p-[1px] rounded-lg sm:rounded-xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(254, 165, 25, 0.6), rgba(224, 30, 31, 0.6))' }}>
+                  <div className="relative h-full bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl p-2.5 sm:p-4 transition-all duration-300 group-hover:bg-white/95">
+                    <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                      <div className="p-1 sm:p-1.5 bg-gradient-to-br from-[#FEA418] to-[#DE1C1C] rounded-md sm:rounded-lg">
+                        <HelpingHand className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+                      </div>
+                      <span className="text-[10px] sm:text-xs font-medium text-gray-500 truncate">Helper</span>
+                    </div>
+                    <div className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#FEA418] to-[#DE1C1C]">
+                      {manpowerLoading ? "..." : manpowerStats.helper}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Status Filters */}
+            <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => setFilterStatus("all")}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${filterStatus === "all"
+                    ? "bg-[#DE1C1C] text-white"
+                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                    }`}
+                >
+                  All ({dateFilteredRecords.length})
+                </button>
+                <button
+                  onClick={() => setFilterStatus("PENDING")}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${filterStatus === "PENDING"
+                    ? "bg-[#FEA418] text-white"
+                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                    }`}
+                >
+                  Pending ({dateFilteredRecords.filter((r) => r.status === "PENDING").length})
+                </button>
+                <button
+                  onClick={() => setFilterStatus("COMPLETED")}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${filterStatus === "COMPLETED"
+                    ? "bg-[#FEA418] text-white"
+                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                    }`}
+                >
+                  Completed ({dateFilteredRecords.filter((r) => r.status === "COMPLETED").length})
+                </button>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                  <thead className="bg-gray-50 dark:bg-gray-800">
+                    <tr>
+                      <th
+                        scope="col"
+                        className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort("srNoVehicleCount")}
+                      >
+                        <div className="flex items-center gap-1">
+                          Vehicle #
+                          {sortBy === "srNoVehicleCount" && (
+                            <span>{sortOrder === "asc" ? "↑" : "↓"}</span>
+                          )}
+                        </div>
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Supervisor
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Shift
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        In Time
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Out Time
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Bin No
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Model No
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Chassis No
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Type
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Production Incharge
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Remarks
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort("updatedAt")}
+                      >
+                        <div className="flex items-center gap-1">
+                          Last Updated
+                          {sortBy === "updatedAt" && (
+                            <span>{sortOrder === "asc" ? "↑" : "↓"}</span>
+                          )}
+                        </div>
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort("createdAt")}
+                      >
+                        <div className="flex items-center gap-1">
+                          Created
+                          {sortBy === "createdAt" && (
+                            <span>{sortOrder === "asc" ? "↑" : "↓"}</span>
+                          )}
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                    {sortedRecords.length === 0 ? (
+                      <tr>
+                        <td colSpan={15} className="px-4 py-8 text-center text-gray-500">
+                          No records found
+                        </td>
+                      </tr>
+                    ) : (
+                      sortedRecords.map((record) => (
+                        <tr key={record.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {record.srNoVehicleCount ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#DE1C1C]/10 text-[#DE1C1C]">
+                                #{record.srNoVehicleCount}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${record.status === "COMPLETED"
+                                ? "bg-green-100 text-green-700"
+                                : "bg-[#FEA418]/20 text-[#FEA418]"
+                                }`}
+                            >
+                              {record.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                            {record.dronaSupervisor}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                            {record.shift}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {record.date ? new Date(record.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : "-"}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {record.inTime ? convertTo12Hour(record.inTime) : "-"}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {record.outTime ? convertTo12Hour(record.outTime) : "-"}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                            {record.binNo}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                            {record.modelNo}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {record.chassisNo}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${record.type === "PTS"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-purple-100 text-purple-800"
+                                }`}
+                            >
+                              {record.type}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {record.productionInchargeFromVBCL || "-"}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 max-w-xs">
+                            {record.remarks || "-"}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {formatDateTime(record.updatedAt)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {formatDateTime(record.createdAt)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Cancel Confirmation Modal */}
-      {showCancelConfirm && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-md w-full p-6 border border-gray-200 dark:border-gray-800">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Confirm Cancel</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Are you sure you want to move this entry back to pending? It will become editable again.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowCancelConfirm(null)}
-                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-              >
-                No, Keep It
-              </button>
-              <button
-                onClick={() => showCancelConfirm && handleCancelRecord(showCancelConfirm)}
-                className="flex-1 px-4 py-2 bg-gradient-to-r from-[#E01E1F] to-[#FEA519] text-white rounded-lg hover:shadow-lg transition-all"
-              >
-                Yes, Move to Pending
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+        </main>
+      </div>
+    </LocalizationProvider>
   );
 }
