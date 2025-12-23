@@ -1,6 +1,15 @@
-"use server";
+// "use server";
 
-import { Client, Databases } from "appwrite";
+// NOTE: This file is currently disabled as it requires the 'node-appwrite' package
+// instead of the 'appwrite' (web SDK) package. The web SDK's Client does not have
+// a .setKey() method - that's only available in the Node.js Server SDK.
+//
+// To enable server-side Appwrite operations:
+// 1. Install node-appwrite: npm install node-appwrite
+// 2. Uncomment the code below and update the import
+
+/*
+import { Client, Databases } from "node-appwrite";
 
 const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
 const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
@@ -21,3 +30,8 @@ const serverClient = new Client()
 const serverDatabases = new Databases(serverClient);
 
 export { serverClient, serverDatabases };
+*/
+
+// Placeholder exports to prevent import errors if this file was previously imported
+export const serverClient = null;
+export const serverDatabases = null;
