@@ -3,6 +3,7 @@ import { account } from "./appwrite";
 export const appwriteAuth = {
   // Register new user
   async register(email: string, password: string, name: string) {
+    if (!account) throw new Error("Appwrite not configured");
     try {
       const response = await account.create("unique()", email, password, name);
       return response;
@@ -14,6 +15,7 @@ export const appwriteAuth = {
 
   // Login user
   async login(email: string, password: string) {
+    if (!account) throw new Error("Appwrite not configured");
     try {
       const session = await account.createEmailPasswordSession(
         email,
@@ -28,6 +30,7 @@ export const appwriteAuth = {
 
   // Get current user
   async getUser() {
+    if (!account) throw new Error("Appwrite not configured");
     try {
       const user = await account.get();
       return user;
@@ -39,6 +42,7 @@ export const appwriteAuth = {
 
   // Logout user
   async logout() {
+    if (!account) throw new Error("Appwrite not configured");
     try {
       await account.deleteSession("current");
     } catch (error) {
@@ -49,6 +53,7 @@ export const appwriteAuth = {
 
   // Update user profile
   async updateProfile(name?: string, password?: string) {
+    if (!account) throw new Error("Appwrite not configured");
     try {
       if (name) {
         await account.updateName(name);

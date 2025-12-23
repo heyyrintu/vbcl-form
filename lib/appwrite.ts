@@ -4,16 +4,15 @@ const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
 const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
 const projectName = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_NAME;
 
-if (!endpoint || !projectId || !projectName) {
-  throw new Error(
-    "Missing Appwrite configuration. Ensure endpoint, project ID, and project name are set in the environment.",
-  );
+// Create client only if configuration is available
+let client: Client | null = null;
+let account: Account | null = null;
+let databases: Databases | null = null;
+
+if (endpoint && projectId) {
+  client = new Client().setEndpoint(endpoint).setProject(projectId);
+  account = new Account(client);
+  databases = new Databases(client);
 }
-
-// Client-side instance (browser and SSR)
-const client = new Client().setEndpoint(endpoint).setProject(projectId);
-
-const account = new Account(client);
-const databases = new Databases(client);
 
 export { client, account, databases, projectName };

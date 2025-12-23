@@ -1,3 +1,13 @@
+// NOTE: This file is currently disabled as it depends on serverDatabases
+// which requires the node-appwrite package. The project currently uses
+// NextAuth for authentication instead of Appwrite.
+//
+// To enable this utility:
+// 1. Install node-appwrite: npm install node-appwrite
+// 2. Set up APPWRITE_API_KEY in your environment
+// 3. Uncomment the code below
+
+/*
 import { serverDatabases } from "./appwrite";
 import { Query } from "appwrite";
 
@@ -61,3 +71,7 @@ export const appwriteUtils = {
   queryLimit: (limit: number) => Query.limit(limit),
   queryOffset: (offset: number) => Query.offset(offset),
 };
+*/
+
+// Placeholder export to prevent import errors
+export const appwriteUtils = null;
