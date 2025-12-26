@@ -5,7 +5,7 @@ import { formatDateTime, convertTo12Hour } from "@/lib/utils";
 import AppSidebar from "@/components/AppSidebar";
 import { BGPattern } from "@/components/ui/bg-pattern";
 import { cn } from "@/lib/utils";
-import { Download, LayoutDashboard, Truck, CalendarDays, Clock, X, Calendar, Users, UserCheck, Wrench, PaintBucket, Zap, HelpingHand } from "lucide-react";
+import { Download, LayoutDashboard, Truck, CalendarDays, Clock, X, Calendar, Users, UserCheck, Wrench, PaintBucket, Zap, HelpingHand, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import * as XLSX from "xlsx";
 import type { ProductionRecord, EmployeeAssignment } from "@/types/record";
@@ -72,6 +72,10 @@ export default function Dashboard() {
   const [manpowerLoading, setManpowerLoading] = useState(false);
 
   const [authState, setAuthState] = useState<"checking" | "authenticated" | "unauthenticated">("checking");
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [recordsPerPage, setRecordsPerPage] = useState(10);
 
   const monthOptions = useMemo(() => getMonthOptions(), []);
 
@@ -181,6 +185,19 @@ export default function Dashboard() {
       return aValue < bValue ? 1 : -1;
     }
   });
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterStatus, fromDate, toDate, selectedMonth, sortBy, sortOrder]);
+
+  // Pagination calculations
+  const indexOfLastRecord = currentPage * recordsPerPage;
+  const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
+  const currentRecords = sortedRecords.slice(indexOfFirstRecord, indexOfLastRecord);
+  const totalPages = Math.ceil(sortedRecords.length / recordsPerPage);
+
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
   // Summary card calculations
   const totalVehicle = useMemo(() => {
@@ -660,8 +677,75 @@ export default function Dashboard() {
               </div>
             </div>
 
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-4 mb-6">
+              {currentRecords.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                  No records found
+                </div>
+              ) : (
+                currentRecords.map((record) => (
+                  <div key={record.id} className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-2">
+                        {record.srNoVehicleCount ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#DE1C1C]/10 text-[#DE1C1C]">
+                            #{record.srNoVehicleCount}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-sm">-</span>
+                        )}
+                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{record.modelNo}</span>
+                      </div>
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${record.status === "COMPLETED"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-[#FEA418]/20 text-[#FEA418]"
+                          }`}
+                      >
+                        {record.status}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-xs text-gray-500 block">Supervisor</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">{record.dronaSupervisor}</span>
+                      </div>
+                      <div>
+                        <span className="text-xs text-gray-500 block">Shift</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">{record.shift}</span>
+                      </div>
+                      <div>
+                        <span className="text-xs text-gray-500 block">Date</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">{record.date ? new Date(record.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : "-"}</span>
+                      </div>
+                      <div>
+                        <span className="text-xs text-gray-500 block">Chassis No</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-100 truncate">{record.chassisNo}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center pt-2 border-t border-gray-100 dark:border-gray-800">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${record.type === "PTS"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-purple-100 text-purple-800"
+                          }`}
+                      >
+                        {record.type}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {formatDateTime(record.updatedAt)}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
             {/* Table */}
-            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="hidden md:block bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 text-sm">
                   <thead className="bg-gray-50 dark:bg-gray-800">
@@ -748,7 +832,7 @@ export default function Dashboard() {
                         </td>
                       </tr>
                     ) : (
-                      sortedRecords.map((record) => (
+                      currentRecords.map((record) => (
                         <tr key={record.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                           <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                             {record.srNoVehicleCount ? (
@@ -822,6 +906,52 @@ export default function Dashboard() {
                 </table>
               </div>
             </div>
+
+            {/* Pagination Controls */}
+            {sortedRecords.length > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 text-sm text-gray-500 pb-8">
+                <div className="flex items-center gap-2">
+                  <span>Rows per page:</span>
+                  <select
+                    value={recordsPerPage}
+                    onChange={(e) => {
+                      setRecordsPerPage(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="h-8 w-16 rounded-md border border-gray-300 bg-white text-sm focus:border-primary focus:ring-1 focus:ring-primary dark:bg-gray-900 dark:border-gray-700"
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span>
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <div className="flex items-center rounded-md border border-gray-300 bg-white dark:bg-gray-900 dark:border-gray-700 overflow-hidden">
+                    <button
+                      onClick={() => paginate(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="p-2 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:hover:bg-transparent transition-colors"
+                      aria-label="Previous page"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <div className="w-px h-8 bg-gray-300 dark:bg-gray-700" />
+                    <button
+                      onClick={() => paginate(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className="p-2 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:hover:bg-transparent transition-colors"
+                      aria-label="Next page"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </main>
       </div>

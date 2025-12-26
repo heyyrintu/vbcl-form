@@ -8,7 +8,7 @@ import AppSidebar from "@/components/AppSidebar";
 import { BGPattern } from "@/components/ui/bg-pattern";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Plus, LayoutDashboard, CheckCircle2, Clock, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, LayoutDashboard, CheckCircle2, Clock, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import type { ProductionRecord } from "@/types/record";
 import { getSession } from "next-auth/react";
 
@@ -22,6 +22,7 @@ export default function AllEntriesPage() {
   const [showCancelConfirm, setShowCancelConfirm] = useState<string | null>(null);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState<string | null>(null);
   const [showAllCompleted, setShowAllCompleted] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const [authState, setAuthState] = useState<"checking" | "authenticated" | "unauthenticated">("checking");
 
@@ -132,6 +133,15 @@ export default function AllEntriesPage() {
 
   const handleFormSuccess = () => {
     fetchRecords();
+  };
+
+  const handleShowMore = () => {
+    setIsLoadingMore(true);
+    // Simulate network request/rendering delay for smooth UX
+    setTimeout(() => {
+      setShowAllCompleted(true);
+      setIsLoadingMore(false);
+    }, 800);
   };
 
   const pendingRecords = records.filter((r) => r.status === "PENDING");
@@ -284,32 +294,45 @@ export default function AllEntriesPage() {
                   onCancel={(record) => setShowCancelConfirm(record.id)}
                 />
                 {!showAllCompleted && otherDaysRecords.length > 0 && (
-                  <div className="mt-8 flex justify-center">
+                  <div className="mt-12 flex flex-col items-center justify-center pb-8">
                     <Button
-                      onClick={() => setShowAllCompleted(true)}
+                      onClick={handleShowMore}
+                      disabled={isLoadingMore}
                       variant="outline"
-                      className="group relative px-8 py-3.5 text-base font-semibold bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-2 border-gray-200 dark:border-gray-700 hover:border-primary/50 dark:hover:border-primary/50 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-all duration-300 rounded-xl shadow-sm hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-0.5 active:translate-y-0"
+                      className="group relative px-8 py-3 text-sm font-medium bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-all duration-300 rounded-full"
                     >
-                      <ChevronDown className="w-5 h-5 mr-2 transition-transform duration-300 group-hover:translate-y-1" />
-                      <span>Show More</span>
-                      <span className="ml-2 px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-sm font-bold">
-                        {otherDaysRecords.length} {otherDaysRecords.length === 1 ? "entry" : "entries"}
-                      </span>
+                      {isLoadingMore ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          <span>Loading...</span>
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <span>Show More ({otherDaysRecords.length})</span>
+                          <ChevronDown className="w-4 h-4 transition-transform duration-300 group-hover:translate-y-1" />
+                        </div>
+                      )}
                     </Button>
                   </div>
                 )}
                 {showAllCompleted && completedRecords.length > mostRecentDayRecords.length && (
-                  <div className="mt-8 flex justify-center">
+                  <div className="mt-12 flex flex-col items-center justify-center pb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-800 to-transparent mb-8" />
+                    
+                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-6">
+                      <CheckCircle2 className="w-4 h-4 text-green-500" />
+                      <span>All {completedRecords.length} entries loaded</span>
+                    </div>
+
                     <Button
                       onClick={() => {
                         setShowAllCompleted(false);
-                        // Scroll to top of completed section
                         window.scrollTo({ top: 0, behavior: "smooth" });
                       }}
                       variant="outline"
-                      className="group relative px-8 py-3.5 text-base font-semibold bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-2 border-gray-200 dark:border-gray-700 hover:border-primary/50 dark:hover:border-primary/50 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-all duration-300 rounded-xl shadow-sm hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-0.5 active:translate-y-0"
+                      className="group relative px-8 py-3 text-sm font-medium bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-all duration-300 rounded-full"
                     >
-                      <ChevronUp className="w-5 h-5 mr-2 transition-transform duration-300 group-hover:-translate-y-1" />
+                      <ChevronUp className="w-4 h-4 mr-2 transition-transform duration-300 group-hover:-translate-y-1" />
                       <span>Show Less</span>
                     </Button>
                   </div>

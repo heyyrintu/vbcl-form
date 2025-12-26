@@ -201,11 +201,13 @@ export default function UserProfilePage({ params }: { params: Promise<{ id: stri
 
     return (
         <div className="min-h-screen bg-neutral-50 p-4 lg:p-10">
-            {/* Background */}
-            <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
-                <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] bg-red-500/5 blur-[120px] rounded-full" />
-                <div className="absolute bottom-[-10%] left-[-5%] w-[30%] h-[30%] bg-orange-500/5 blur-[100px] rounded-full" />
-            </div>
+            {/* 
+              Fixed decorative background
+              - Positioned using CSS background-position for precise alignment
+              - Remains fixed while content scrolls (see .app-fixed-bg)
+              - Viewport-relative sizing ensures responsive composition
+            */}
+            <div className="app-fixed-bg" aria-hidden="true" />
 
             <div className="max-w-4xl mx-auto space-y-6">
                 {/* Back Button */}

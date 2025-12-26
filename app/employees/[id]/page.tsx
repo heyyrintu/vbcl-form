@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
     ArrowLeft,
     User,
@@ -52,6 +52,7 @@ const offroleRoles = ["Painter", "Fitter", "Electrician", "Helper"];
 export default function EmployeeProfilePage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     const [employee, setEmployee] = useState<Employee | null>(null);
     const [attendance, setAttendance] = useState<AttendanceData | null>(null);
@@ -59,6 +60,11 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
+
+    // Return navigation parameters
+    const returnDate = searchParams.get('returnDate');
+    const returnShift = searchParams.get('returnShift');
+    const fromPage = searchParams.get('from');
 
     // Edit form state
     const [editName, setEditName] = useState("");
@@ -74,6 +80,16 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
     // Delete modal
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleting, setDeleting] = useState(false);
+
+    // Return to attendance page with preserved state
+    const handleReturnToAttendance = () => {
+        const params = new URLSearchParams();
+        if (returnDate) params.set('date', returnDate);
+        if (returnShift) params.set('shift', returnShift);
+        
+        const url = `/employee-attendance${params.toString() ? `?${params.toString()}` : ''}`;
+        router.push(url);
+    };
 
     useEffect(() => {
         fetchEmployee();
@@ -247,13 +263,50 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                 <BGPattern variant="grid" mask="fade-edges" size={24} fill="rgba(222, 28, 28, 0.1)" className="absolute inset-0 pointer-events-none dark:opacity-30" />
 
                 <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
+                    {/* Breadcrumb Navigation */}
+                    <nav className="flex items-center gap-2 text-sm mb-4" aria-label="Breadcrumb">
+                        {fromPage === 'attendance' ? (
+                            <>
+                                <button
+                                    onClick={handleReturnToAttendance}
+                                    className="text-gray-600 dark:text-gray-400 hover:text-[#DE1C1C] dark:hover:text-[#FEA519] transition-colors font-medium"
+                                    aria-label="Return to attendance page"
+                                >
+                                    Attendance Summary
+                                </button>
+                                <span className="text-gray-400">/</span>
+                                <span className="text-gray-900 dark:text-white font-medium">{employee?.name}</span>
+                                {returnDate && returnShift && (
+                                    <span className="ml-2 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs">
+                                        {returnDate} • {returnShift} Shift
+                                    </span>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <button
+                                    onClick={() => router.push("/employees")}
+                                    className="text-gray-600 dark:text-gray-400 hover:text-[#DE1C1C] dark:hover:text-[#FEA519] transition-colors font-medium"
+                                    aria-label="Return to all employees"
+                                >
+                                    All Employees
+                                </button>
+                                <span className="text-gray-400">/</span>
+                                <span className="text-gray-900 dark:text-white font-medium">{employee?.name}</span>
+                            </>
+                        )}
+                    </nav>
+                    
                     {/* Back Button */}
                     <button
-                        onClick={() => router.push("/employees")}
+                        onClick={fromPage === 'attendance' ? handleReturnToAttendance : () => router.push("/employees")}
                         className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6 transition-colors"
+                        aria-label={fromPage === 'attendance' ? 'Return to attendance summary' : 'Back to all employees'}
                     >
                         <ArrowLeft className="w-4 h-4" />
-                        <span className="font-medium">Back to All Employees</span>
+                        <span className="font-medium">
+                            {fromPage === 'attendance' ? 'Back to Attendance Summary' : 'Back to All Employees'}
+                        </span>
                     </button>
 
                     {/* Header Card */}

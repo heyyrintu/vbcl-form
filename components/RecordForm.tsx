@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -61,6 +61,27 @@ interface RecordFormProps {
   onSuccess: () => void;
 }
 
+// Constants for auto-save
+const AUTO_SAVE_KEY = 'record_form_autosave';
+const AUTO_SAVE_DEBOUNCE_MS = 1000;
+const SESSION_ID_KEY = 'record_form_session_id';
+
+// Helper to generate session ID
+const generateSessionId = () => {
+  return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+};
+
+// Helper to get or create session ID
+const getSessionId = () => {
+  if (typeof window === 'undefined') return null;
+  let sessionId = sessionStorage.getItem(SESSION_ID_KEY);
+  if (!sessionId) {
+    sessionId = generateSessionId();
+    sessionStorage.setItem(SESSION_ID_KEY, sessionId);
+  }
+  return sessionId;
+};
+
 export default function RecordForm({ existingRecord, onClose, onSuccess }: RecordFormProps) {
   const [formData, setFormData] = useState<RecordFormData>({
     dronaSupervisor: "",
@@ -89,8 +110,112 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
   const [outTimeValue, setOutTimeValue] = useState<Dayjs | null>(null);
   const [selectedEmployees, setSelectedEmployees] = useState<Employee[]>([]);
 
+  // Auto-save state
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'saved' | 'saving' | 'idle'>('idle');
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
+  const isInitialLoadRef = useRef(true);
+  const hasRestoredDataRef = useRef(false);
+
+  // Initialize session ID
   useEffect(() => {
-    if (existingRecord) {
+    sessionIdRef.current = getSessionId();
+  }, []);
+
+  // Auto-save function
+  const saveToLocalStorage = useCallback(() => {
+    if (typeof window === 'undefined' || !sessionIdRef.current) return;
+
+    try {
+      const dataToSave = {
+        formData,
+        dateValue: dateValue ? dateValue.toISOString() : null,
+        inTimeValue: inTimeValue ? inTimeValue.toISOString() : null,
+        outTimeValue: outTimeValue ? outTimeValue.toISOString() : null,
+        selectedEmployees,
+        sessionId: sessionIdRef.current,
+        timestamp: Date.now(),
+        recordId: existingRecord?.id || null,
+      };
+
+      localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(dataToSave));
+      setAutoSaveStatus('saved');
+
+      // Reset status after 2 seconds
+      setTimeout(() => {
+        setAutoSaveStatus('idle');
+      }, 2000);
+    } catch (error) {
+      console.error('Failed to auto-save:', error);
+      setAutoSaveStatus('idle');
+    }
+  }, [formData, dateValue, inTimeValue, outTimeValue, selectedEmployees, existingRecord?.id]);
+
+  // Restore from localStorage
+  const restoreFromLocalStorage = useCallback(() => {
+    if (typeof window === 'undefined' || hasRestoredDataRef.current) return false;
+
+    try {
+      const saved = localStorage.getItem(AUTO_SAVE_KEY);
+      if (!saved) return false;
+
+      const parsedData = JSON.parse(saved);
+
+      // Check if this is for the same record (or both are new records)
+      const isSameRecord = 
+        (existingRecord?.id && parsedData.recordId === existingRecord.id) ||
+        (!existingRecord?.id && !parsedData.recordId);
+
+      if (!isSameRecord) return false;
+
+      // Check if data is not too old (24 hours)
+      const dataAge = Date.now() - parsedData.timestamp;
+      if (dataAge > 24 * 60 * 60 * 1000) {
+        localStorage.removeItem(AUTO_SAVE_KEY);
+        return false;
+      }
+
+      // Restore form data
+      setFormData(parsedData.formData);
+      if (parsedData.dateValue) {
+        setDateValue(dayjs(parsedData.dateValue));
+      }
+      if (parsedData.inTimeValue) {
+        setInTimeValue(dayjs(parsedData.inTimeValue));
+      }
+      if (parsedData.outTimeValue) {
+        setOutTimeValue(dayjs(parsedData.outTimeValue));
+      }
+      if (parsedData.selectedEmployees) {
+        setSelectedEmployees(parsedData.selectedEmployees);
+      }
+
+      hasRestoredDataRef.current = true;
+      setHasUnsavedChanges(true);
+      return true;
+    } catch (error) {
+      console.error('Failed to restore auto-saved data:', error);
+      localStorage.removeItem(AUTO_SAVE_KEY);
+      return false;
+    }
+  }, [existingRecord?.id]);
+
+  // Clear auto-save data
+  const clearAutoSaveData = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem(AUTO_SAVE_KEY);
+    setHasUnsavedChanges(false);
+    setAutoSaveStatus('idle');
+  }, []);
+
+  // Load existing record or restore from localStorage
+  useEffect(() => {
+    // First try to restore from localStorage
+    const restored = restoreFromLocalStorage();
+
+    // If nothing was restored and we have an existing record, load it
+    if (!restored && existingRecord) {
       setFormData({
         dronaSupervisor: existingRecord.dronaSupervisor || "",
         shift: existingRecord.shift || "Day Shift",
@@ -150,6 +275,56 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
 
     fetchEmployees();
   }, [existingRecord?.id]);
+
+  // Trigger initial load flag after component mounts
+  useEffect(() => {
+    // Small delay to ensure all data is loaded
+    const timer = setTimeout(() => {
+      isInitialLoadRef.current = false;
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Auto-save effect - triggers on form data changes
+  useEffect(() => {
+    // Skip auto-save during initial load
+    if (isInitialLoadRef.current) return;
+
+    // Mark as having unsaved changes
+    setHasUnsavedChanges(true);
+    setAutoSaveStatus('saving');
+
+    // Clear existing timeout
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    // Set new timeout for debounced save
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      saveToLocalStorage();
+    }, AUTO_SAVE_DEBOUNCE_MS);
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [formData, dateValue, inTimeValue, outTimeValue, selectedEmployees, saveToLocalStorage]);
+
+  // Warn user about unsaved changes before leaving
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -236,6 +411,8 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
         throw new Error("Failed to save record");
       }
 
+      // Clear auto-save data on successful save
+      clearAutoSaveData();
       onSuccess();
       onClose();
     } catch {
@@ -300,6 +477,9 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
 
       const result = await response.json();
 
+      // Clear auto-save data on successful submission
+      clearAutoSaveData();
+
       // Only show error if it's an actual sync failure, not just not configured
       if (!result.sheetSyncSuccess && result.sheetSyncError && !result.sheetSyncNotConfigured) {
         setError(`Record submitted but Google Sheets sync failed: ${result.sheetSyncError}`);
@@ -319,28 +499,79 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
     }
   };
 
+  // Handle close with unsaved changes warning
+  const handleClose = useCallback(() => {
+    if (hasUnsavedChanges) {
+      const confirmed = window.confirm(
+        'You have unsaved changes. Your data has been auto-saved and will be restored when you return. Are you sure you want to close?'
+      );
+      if (!confirmed) return;
+    }
+    onClose();
+  }, [hasUnsavedChanges, onClose]);
+
+  // Handle cancel - clears auto-save data
+  const handleCancel = useCallback(() => {
+    if (hasUnsavedChanges) {
+      const confirmed = window.confirm(
+        'Are you sure you want to cancel? This will discard all auto-saved data.'
+      );
+      if (!confirmed) return;
+      clearAutoSaveData();
+    }
+    onClose();
+  }, [hasUnsavedChanges, clearAutoSaveData, onClose]);
+
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-[#DE1C1C]/20 to-slate-800 flex items-center justify-center p-0 z-50 overflow-hidden">
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose}></div>
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleClose}></div>
         <div className="relative bg-white rounded-none sm:rounded-xl shadow-2xl max-w-5xl w-full h-full sm:h-auto sm:max-h-[95vh] flex flex-col overflow-hidden">
           {/* Header - Fixed */}
           <div className="bg-gradient-to-r from-[#DE1C1C] to-[#C01818] text-white px-4 sm:px-6 py-4 sm:py-5 flex-shrink-0">
             <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-xl sm:text-2xl font-bold">
-                  {existingRecord ? "Edit Entry" : "New Entry"}
-                </h2>
+              <div className="flex-1">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-xl sm:text-2xl font-bold">
+                    {existingRecord ? "Edit Entry" : "New Entry"}
+                  </h2>
+                  {/* Auto-save indicator */}
+                  {autoSaveStatus !== 'idle' && (
+                    <span className="text-xs bg-white/20 px-2 py-1 rounded-full flex items-center gap-1">
+                      {autoSaveStatus === 'saving' ? (
+                        <>
+                          <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                          <span>Auto-saved</span>
+                        </>
+                      )}
+                    </span>
+                  )}
+                </div>
                 <p className="text-white/90 text-sm mt-1">
                   {existingRecord ? "Update production record details" : "Create a new production record"}
+                  {hasRestoredDataRef.current && (
+                    <span className="ml-2 text-xs bg-yellow-500/20 px-2 py-0.5 rounded border border-yellow-500/30">
+                      Restored from auto-save
+                    </span>
+                  )}
                 </p>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={onClose}
+                onClick={handleClose}
                 disabled={loading}
-                className="h-8 w-8 text-white hover:bg-white/20 hover:text-white"
+                className="h-8 w-8 text-white hover:bg-white/20 hover:text-white flex-shrink-0"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -624,34 +855,47 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
 
           {/* Footer - Fixed */}
           <div className="bg-gray-50 border-t border-gray-200 px-4 sm:px-6 py-4 flex-shrink-0">
-            <div className="flex flex-col sm:flex-row gap-3 justify-end">
-              <Button
-                type="button"
-                onClick={onClose}
-                disabled={loading}
-                variant="outline"
-                className="w-full sm:w-auto"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={handleSave}
-                disabled={loading}
-                variant="outline"
-                className="w-full sm:w-auto"
-              >
-                {loading ? "Saving..." : "Save"}
-              </Button>
-              <Button
-                type="button"
-                onClick={() => setShowSubmitConfirm(true)}
-                disabled={loading}
-                variant="gradient"
-                className="w-full sm:w-auto"
-              >
-                Submit
-              </Button>
+            <div className="flex flex-col sm:flex-row gap-3 justify-between items-center">
+              {/* Auto-save status text */}
+              <div className="text-xs text-gray-500 flex items-center gap-2">
+                {hasUnsavedChanges && autoSaveStatus === 'idle' && (
+                  <span className="flex items-center gap-1">
+                    <svg className="w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    Changes auto-saved
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                <Button
+                  type="button"
+                  onClick={handleCancel}
+                  disabled={loading}
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={loading}
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                >
+                  {loading ? "Saving..." : "Save"}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => setShowSubmitConfirm(true)}
+                  disabled={loading}
+                  variant="gradient"
+                  className="w-full sm:w-auto"
+                >
+                  Submit
+                </Button>
+              </div>
             </div>
           </div>
         </div>

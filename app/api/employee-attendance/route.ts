@@ -21,7 +21,7 @@ export async function GET(request: Request) {
       );
     }
 
-    // Fetch attendance records with employee details
+    // Fetch attendance records with employee details and their assignments in one query
     const attendanceRecords = await prisma.employeeAttendance.findMany({
       where: {
         date,
@@ -34,6 +34,26 @@ export async function GET(request: Request) {
             employeeId: true,
             name: true,
             role: true,
+            assignments: {
+              where: {
+                record: {
+                  date,
+                  shift: shift === "Day" ? "Day Shift" : "Night Shift",
+                },
+              },
+              select: {
+                splitCount: true,
+                record: {
+                  select: {
+                    id: true,
+                    binNo: true,
+                    modelNo: true,
+                    chassisNo: true,
+                    srNoVehicleCount: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -44,52 +64,34 @@ export async function GET(request: Request) {
       },
     });
 
-    // Also fetch which vehicle entries each employee worked on
-    const employeeIds = attendanceRecords.map((a) => a.employeeId);
-
-    const assignments = await prisma.employeeAssignment.findMany({
-      where: {
-        employeeId: {
-          in: employeeIds,
-        },
-        record: {
-          date,
-          shift: shift === "Day" ? "Day Shift" : "Night Shift",
-        },
+    // Transform the data to match the expected format
+    const attendanceWithAssignments = attendanceRecords.map((attendance) => ({
+      id: attendance.id,
+      employeeId: attendance.employeeId,
+      date: attendance.date,
+      shift: attendance.shift,
+      employee: {
+        id: attendance.employee.id,
+        employeeId: attendance.employee.employeeId,
+        name: attendance.employee.name,
+        role: attendance.employee.role,
       },
-      include: {
-        record: {
-          select: {
-            id: true,
-            binNo: true,
-            modelNo: true,
-            chassisNo: true,
-            srNoVehicleCount: true,
-          },
-        },
-      },
-    });
+      vehicleEntries: attendance.employee.assignments.map((a) => ({
+        recordId: a.record.id,
+        binNo: a.record.binNo,
+        modelNo: a.record.modelNo,
+        chassisNo: a.record.chassisNo,
+        srNoVehicleCount: a.record.srNoVehicleCount,
+        splitCount: a.splitCount,
+      })),
+    }));
 
-    // Map assignments to employees
-    const attendanceWithAssignments = attendanceRecords.map((attendance) => {
-      const employeeAssignments = assignments.filter(
-        (a) => a.employeeId === attendance.employeeId
-      );
-
-      return {
-        ...attendance,
-        vehicleEntries: employeeAssignments.map((a) => ({
-          recordId: a.record.id,
-          binNo: a.record.binNo,
-          modelNo: a.record.modelNo,
-          chassisNo: a.record.chassisNo,
-          srNoVehicleCount: a.record.srNoVehicleCount,
-          splitCount: a.splitCount,
-        })),
-      };
-    });
-
-    return NextResponse.json(attendanceWithAssignments);
+    const response = NextResponse.json(attendanceWithAssignments);
+    
+    // Add cache headers for better performance (cache for 30 seconds)
+    response.headers.set('Cache-Control', 'private, max-age=30, stale-while-revalidate=60');
+    
+    return response;
   } catch (error) {
     console.error("Error fetching employee attendance:", error);
     return NextResponse.json(

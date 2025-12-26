@@ -135,3 +135,34 @@
     opacity: 0;
   }
 }
+
+/* 
+  Fixed, non-scrolling decorative background
+  - Uses multiple radial-gradient layers positioned by background-position
+  - Stays fixed while page content scrolls over it (background-attachment: fixed)
+  - Viewport-relative sizing keeps the composition responsive across devices
+  - Large blur-like gradients preserve visual quality without pixelation
+*/
+.app-fixed-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+
+  /* Keep background stationary as content scrolls */
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+
+  /* Two gradient blobs sized relative to viewport for responsiveness */
+  background-size: 40vmax 40vmax, 30vmax 30vmax;
+
+  /* Precisely control placement to frame content (right/top and left/bottom) */
+  background-position:
+    right 5vw top 10vh,
+    left 5vw bottom 10vh;
+
+  /* Soft color accents with transparency for subtle effect */
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(224, 30, 31, 0.06) 0%, rgba(224, 30, 31, 0.06) 35%, transparent 36%),
+    radial-gradient(circle at 50% 50%, rgba(254, 165, 25, 0.06) 0%, rgba(254, 165, 25, 0.06) 30%, transparent 31%);
+}

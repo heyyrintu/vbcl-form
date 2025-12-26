@@ -21,6 +21,7 @@ import {
     IconInfoCircle,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
+import AppSidebar from "@/components/AppSidebar";
 
 export default function SettingsPage() {
     const { data: session, status } = useSession();
@@ -169,14 +170,18 @@ export default function SettingsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900 p-4 lg:p-10">
-            {/* Background */}
-            <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
-                <div className="absolute top-[-10%] right-[-5%] w-[40%] h-[40%] bg-red-500/5 blur-[120px] rounded-full" />
-                <div className="absolute bottom-[-10%] left-[-5%] w-[30%] h-[30%] bg-orange-500/5 blur-[100px] rounded-full" />
-            </div>
+        <div className={cn("flex flex-col md:flex-row w-full h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-900 transition-colors duration-300")}>
+            <AppSidebar />
+            <main className="flex-1 overflow-y-auto relative z-10">
+            {/* 
+              Fixed decorative background
+              - Positioned using CSS background-position for precise alignment
+              - Remains fixed while content scrolls (see .app-fixed-bg)
+              - Viewport-relative sizing ensures responsive composition
+            */}
+            <div className="app-fixed-bg" aria-hidden="true" />
 
-            <div className="max-w-4xl mx-auto space-y-6">
+            <div className="max-w-4xl mx-auto space-y-6 p-4 lg:p-10">
                 {/* Header */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -409,6 +414,7 @@ export default function SettingsPage() {
                     </motion.div>
                 </div>
             </div>
+            </main>
         </div>
     );
 }
