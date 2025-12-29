@@ -19,9 +19,21 @@ import {
     IconCalendar,
     IconClipboardList,
     IconInfoCircle,
+    IconDeviceMobile,
+    IconCircleCheck,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import AppSidebar from "@/components/AppSidebar";
+
+// Type for the BeforeInstallPromptEvent
+interface BeforeInstallPromptEvent extends Event {
+    readonly platforms: string[];
+    readonly userChoice: Promise<{
+        outcome: "accepted" | "dismissed";
+        platform: string;
+    }>;
+    prompt(): Promise<void>;
+}
 
 export default function SettingsPage() {
     const { data: session, status } = useSession();
@@ -42,6 +54,11 @@ export default function SettingsPage() {
     const [exportLoading, setExportLoading] = useState<string | null>(null);
     const [exportSuccess, setExportSuccess] = useState("");
 
+    // PWA Install state
+    const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+    const [isPWAInstalled, setIsPWAInstalled] = useState(false);
+    const [isInstalling, setIsInstalling] = useState(false);
+
     useEffect(() => {
         if (status === "loading") return;
         if (!session) {
@@ -56,6 +73,37 @@ export default function SettingsPage() {
             setTheme(savedTheme);
             document.documentElement.classList.toggle("dark", savedTheme === "dark");
         }
+    }, []);
+
+    // PWA Install prompt detection
+    useEffect(() => {
+        // Check if already installed
+        const checkInstalled = () => {
+            if (window.matchMedia("(display-mode: standalone)").matches) {
+                setIsPWAInstalled(true);
+            }
+        };
+        checkInstalled();
+
+        // Listen for beforeinstallprompt event
+        const handleBeforeInstallPrompt = (e: Event) => {
+            e.preventDefault();
+            setInstallPrompt(e as BeforeInstallPromptEvent);
+        };
+
+        // Listen for app installed event
+        const handleAppInstalled = () => {
+            setIsPWAInstalled(true);
+            setInstallPrompt(null);
+        };
+
+        window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+        window.addEventListener("appinstalled", handleAppInstalled);
+
+        return () => {
+            window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+            window.removeEventListener("appinstalled", handleAppInstalled);
+        };
     }, []);
 
     const toggleTheme = () => {
@@ -141,6 +189,24 @@ export default function SettingsPage() {
         }
     };
 
+    const handleInstallApp = async () => {
+        if (!installPrompt) return;
+
+        setIsInstalling(true);
+        try {
+            await installPrompt.prompt();
+            const choiceResult = await installPrompt.userChoice;
+            if (choiceResult.outcome === "accepted") {
+                setIsPWAInstalled(true);
+            }
+            setInstallPrompt(null);
+        } catch (error) {
+            console.error("Install error:", error);
+        } finally {
+            setIsInstalling(false);
+        }
+    };
+
     const convertToCSV = (data: Record<string, unknown>[]) => {
         if (data.length === 0) return "";
         const headers = Object.keys(data[0]);
@@ -173,247 +239,329 @@ export default function SettingsPage() {
         <div className={cn("flex flex-col md:flex-row w-full h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-900 transition-colors duration-300")}>
             <AppSidebar />
             <main className="flex-1 overflow-y-auto relative z-10">
-            {/* 
+                {/* 
               Fixed decorative background
               - Positioned using CSS background-position for precise alignment
               - Remains fixed while content scrolls (see .app-fixed-bg)
               - Viewport-relative sizing ensures responsive composition
             */}
-            <div className="app-fixed-bg" aria-hidden="true" />
+                <div className="app-fixed-bg" aria-hidden="true" />
 
-            <div className="max-w-4xl mx-auto space-y-6 p-4 lg:p-10">
-                {/* Header */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center gap-4"
-                >
-                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-[#E01E1F] to-[#FEA519] flex items-center justify-center shadow-lg shadow-red-500/20">
-                        <IconSettings className="text-white" size={28} />
-                    </div>
-                    <div>
-                        <h1 className="text-3xl font-extrabold text-neutral-900 dark:text-white">Settings</h1>
-                        <p className="text-neutral-500 dark:text-neutral-400">Manage your account and app preferences</p>
-                    </div>
-                </motion.div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Change Password */}
+                <div className="max-w-4xl mx-auto space-y-6 p-4 lg:p-10">
+                    {/* Header */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 }}
-                        className="bg-white dark:bg-neutral-800 rounded-[2rem] border border-neutral-200 dark:border-neutral-700 p-6 shadow-sm"
+                        className="flex items-center gap-4"
                     >
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="h-10 w-10 rounded-xl bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center text-purple-500">
-                                <IconKey size={22} />
-                            </div>
-                            <h2 className="text-xl font-bold text-neutral-900 dark:text-white">Change Password</h2>
+                        <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-[#E01E1F] to-[#FEA519] flex items-center justify-center shadow-lg shadow-red-500/20">
+                            <IconSettings className="text-white" size={28} />
                         </div>
-
-                        {passwordError && (
-                            <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-900/30 border border-red-100 dark:border-red-800 text-red-600 dark:text-red-400 text-sm flex items-center gap-2">
-                                <IconAlertCircle size={18} />
-                                {passwordError}
-                            </div>
-                        )}
-
-                        {passwordSuccess && (
-                            <div className="mb-4 p-3 rounded-xl bg-green-50 dark:bg-green-900/30 border border-green-100 dark:border-green-800 text-green-600 dark:text-green-400 text-sm flex items-center gap-2">
-                                <IconCheck size={18} />
-                                {passwordSuccess}
-                            </div>
-                        )}
-
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1.5 block">Current Password</label>
-                                <input
-                                    type="password"
-                                    value={currentPassword}
-                                    onChange={(e) => setCurrentPassword(e.target.value)}
-                                    className="w-full px-4 py-3 rounded-xl bg-neutral-50 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
-                                    placeholder="••••••••"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1.5 block">New Password</label>
-                                <input
-                                    type="password"
-                                    value={newPassword}
-                                    onChange={(e) => setNewPassword(e.target.value)}
-                                    className="w-full px-4 py-3 rounded-xl bg-neutral-50 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
-                                    placeholder="••••••••"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1.5 block">Confirm Password</label>
-                                <input
-                                    type="password"
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    className="w-full px-4 py-3 rounded-xl bg-neutral-50 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
-                                    placeholder="••••••••"
-                                />
-                            </div>
-                            <button
-                                onClick={handleChangePassword}
-                                disabled={passwordLoading}
-                                className="w-full py-3.5 bg-gradient-to-r from-[#E01E1F] to-[#FEA519] text-white font-bold rounded-xl shadow-lg shadow-red-500/20 hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                            >
-                                {passwordLoading ? <IconLoader2 className="animate-spin" size={20} /> : <IconKey size={20} />}
-                                {passwordLoading ? "Updating..." : "Update Password"}
-                            </button>
+                        <div>
+                            <h1 className="text-3xl font-extrabold text-neutral-900 dark:text-white">Settings</h1>
+                            <p className="text-neutral-500 dark:text-neutral-400">Manage your account and app preferences</p>
                         </div>
                     </motion.div>
 
-                    {/* Theme Toggle */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 }}
-                        className="bg-white dark:bg-neutral-800 rounded-[2rem] border border-neutral-200 dark:border-neutral-700 p-6 shadow-sm"
-                    >
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="h-10 w-10 rounded-xl bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center text-amber-500">
-                                {theme === "light" ? <IconSun size={22} /> : <IconMoon size={22} />}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Change Password */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1 }}
+                            className="bg-white dark:bg-neutral-800 rounded-[2rem] border border-neutral-200 dark:border-neutral-700 p-6 shadow-sm"
+                        >
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="h-10 w-10 rounded-xl bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center text-purple-500">
+                                    <IconKey size={22} />
+                                </div>
+                                <h2 className="text-xl font-bold text-neutral-900 dark:text-white">Change Password</h2>
                             </div>
-                            <h2 className="text-xl font-bold text-neutral-900 dark:text-white">Appearance</h2>
-                        </div>
 
-                        <p className="text-neutral-500 dark:text-neutral-400 text-sm mb-4">
-                            Choose your preferred color scheme for the application.
-                        </p>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <button
-                                onClick={() => theme === "dark" && toggleTheme()}
-                                className={cn(
-                                    "p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3",
-                                    theme === "light"
-                                        ? "border-red-500 bg-red-50 dark:bg-red-900/20"
-                                        : "border-neutral-200 dark:border-neutral-600 hover:border-neutral-300"
-                                )}
-                            >
-                                <div className="h-16 w-16 rounded-xl bg-white border border-neutral-200 flex items-center justify-center shadow-sm">
-                                    <IconSun size={28} className="text-amber-500" />
+                            {passwordError && (
+                                <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-900/30 border border-red-100 dark:border-red-800 text-red-600 dark:text-red-400 text-sm flex items-center gap-2">
+                                    <IconAlertCircle size={18} />
+                                    {passwordError}
                                 </div>
-                                <span className={cn("font-bold", theme === "light" ? "text-red-600" : "text-neutral-500 dark:text-neutral-400")}>
-                                    Light
-                                </span>
-                            </button>
+                            )}
 
-                            <button
-                                onClick={() => theme === "light" && toggleTheme()}
-                                className={cn(
-                                    "p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3",
-                                    theme === "dark"
-                                        ? "border-red-500 bg-red-50 dark:bg-red-900/20"
-                                        : "border-neutral-200 dark:border-neutral-600 hover:border-neutral-300"
-                                )}
-                            >
-                                <div className="h-16 w-16 rounded-xl bg-neutral-800 border border-neutral-700 flex items-center justify-center shadow-sm">
-                                    <IconMoon size={28} className="text-indigo-400" />
+                            {passwordSuccess && (
+                                <div className="mb-4 p-3 rounded-xl bg-green-50 dark:bg-green-900/30 border border-green-100 dark:border-green-800 text-green-600 dark:text-green-400 text-sm flex items-center gap-2">
+                                    <IconCheck size={18} />
+                                    {passwordSuccess}
                                 </div>
-                                <span className={cn("font-bold", theme === "dark" ? "text-red-600" : "text-neutral-500 dark:text-neutral-400")}>
-                                    Dark
-                                </span>
-                            </button>
-                        </div>
+                            )}
 
-                        {/* Account Info */}
-                        <div className="mt-6 pt-6 border-t border-neutral-200 dark:border-neutral-700">
-                            <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-neutral-200 to-neutral-300 dark:from-neutral-600 dark:to-neutral-700 flex items-center justify-center">
-                                    <IconUser size={20} className="text-neutral-600 dark:text-neutral-300" />
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1.5 block">Current Password</label>
+                                    <input
+                                        type="password"
+                                        value={currentPassword}
+                                        onChange={(e) => setCurrentPassword(e.target.value)}
+                                        className="w-full px-4 py-3 rounded-xl bg-neutral-50 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
+                                        placeholder="••••••••"
+                                    />
                                 </div>
                                 <div>
-                                    <div className="font-bold text-neutral-900 dark:text-white">{session?.user?.name}</div>
-                                    <div className={cn(
-                                        "text-xs font-medium",
-                                        session?.user?.role === "ADMIN" ? "text-purple-500" : "text-neutral-500"
-                                    )}>
-                                        {session?.user?.role}
+                                    <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1.5 block">New Password</label>
+                                    <input
+                                        type="password"
+                                        value={newPassword}
+                                        onChange={(e) => setNewPassword(e.target.value)}
+                                        className="w-full px-4 py-3 rounded-xl bg-neutral-50 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
+                                        placeholder="••••••••"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1.5 block">Confirm Password</label>
+                                    <input
+                                        type="password"
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        className="w-full px-4 py-3 rounded-xl bg-neutral-50 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 outline-none transition-all"
+                                        placeholder="••••••••"
+                                    />
+                                </div>
+                                <button
+                                    onClick={handleChangePassword}
+                                    disabled={passwordLoading}
+                                    className="w-full py-3.5 bg-gradient-to-r from-[#E01E1F] to-[#FEA519] text-white font-bold rounded-xl shadow-lg shadow-red-500/20 hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                >
+                                    {passwordLoading ? <IconLoader2 className="animate-spin" size={20} /> : <IconKey size={20} />}
+                                    {passwordLoading ? "Updating..." : "Update Password"}
+                                </button>
+                            </div>
+                        </motion.div>
+
+                        {/* Theme Toggle */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2 }}
+                            className="bg-white dark:bg-neutral-800 rounded-[2rem] border border-neutral-200 dark:border-neutral-700 p-6 shadow-sm"
+                        >
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="h-10 w-10 rounded-xl bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center text-amber-500">
+                                    {theme === "light" ? <IconSun size={22} /> : <IconMoon size={22} />}
+                                </div>
+                                <h2 className="text-xl font-bold text-neutral-900 dark:text-white">Appearance</h2>
+                            </div>
+
+                            <p className="text-neutral-500 dark:text-neutral-400 text-sm mb-4">
+                                Choose your preferred color scheme for the application.
+                            </p>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <button
+                                    onClick={() => theme === "dark" && toggleTheme()}
+                                    className={cn(
+                                        "p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3",
+                                        theme === "light"
+                                            ? "border-red-500 bg-red-50 dark:bg-red-900/20"
+                                            : "border-neutral-200 dark:border-neutral-600 hover:border-neutral-300"
+                                    )}
+                                >
+                                    <div className="h-16 w-16 rounded-xl bg-white border border-neutral-200 flex items-center justify-center shadow-sm">
+                                        <IconSun size={28} className="text-amber-500" />
+                                    </div>
+                                    <span className={cn("font-bold", theme === "light" ? "text-red-600" : "text-neutral-500 dark:text-neutral-400")}>
+                                        Light
+                                    </span>
+                                </button>
+
+                                <button
+                                    onClick={() => theme === "light" && toggleTheme()}
+                                    className={cn(
+                                        "p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3",
+                                        theme === "dark"
+                                            ? "border-red-500 bg-red-50 dark:bg-red-900/20"
+                                            : "border-neutral-200 dark:border-neutral-600 hover:border-neutral-300"
+                                    )}
+                                >
+                                    <div className="h-16 w-16 rounded-xl bg-neutral-800 border border-neutral-700 flex items-center justify-center shadow-sm">
+                                        <IconMoon size={28} className="text-indigo-400" />
+                                    </div>
+                                    <span className={cn("font-bold", theme === "dark" ? "text-red-600" : "text-neutral-500 dark:text-neutral-400")}>
+                                        Dark
+                                    </span>
+                                </button>
+                            </div>
+
+                            {/* Account Info */}
+                            <div className="mt-6 pt-6 border-t border-neutral-200 dark:border-neutral-700">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-neutral-200 to-neutral-300 dark:from-neutral-600 dark:to-neutral-700 flex items-center justify-center">
+                                        <IconUser size={20} className="text-neutral-600 dark:text-neutral-300" />
+                                    </div>
+                                    <div>
+                                        <div className="font-bold text-neutral-900 dark:text-white">{session?.user?.name}</div>
+                                        <div className={cn(
+                                            "text-xs font-medium",
+                                            session?.user?.role === "ADMIN" ? "text-purple-500" : "text-neutral-500"
+                                        )}>
+                                            {session?.user?.role}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </motion.div>
+                        </motion.div>
 
-                    {/* Export Data */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
-                        className="bg-white dark:bg-neutral-800 rounded-[2rem] border border-neutral-200 dark:border-neutral-700 p-6 shadow-sm lg:col-span-2"
-                    >
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="h-10 w-10 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-500">
-                                <IconDownload size={22} />
+                        {/* Export Data */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.3 }}
+                            className="bg-white dark:bg-neutral-800 rounded-[2rem] border border-neutral-200 dark:border-neutral-700 p-6 shadow-sm lg:col-span-2"
+                        >
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="h-10 w-10 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-500">
+                                    <IconDownload size={22} />
+                                </div>
+                                <h2 className="text-xl font-bold text-neutral-900 dark:text-white">Export Data</h2>
                             </div>
-                            <h2 className="text-xl font-bold text-neutral-900 dark:text-white">Export Data</h2>
-                        </div>
 
-                        <p className="text-neutral-500 dark:text-neutral-400 text-sm mb-4">
-                            Download your data as CSV files for backup or analysis.
-                        </p>
+                            <p className="text-neutral-500 dark:text-neutral-400 text-sm mb-4">
+                                Download your data as CSV files for backup or analysis.
+                            </p>
 
-                        {exportSuccess && (
-                            <div className="mb-4 p-3 rounded-xl bg-green-50 dark:bg-green-900/30 border border-green-100 dark:border-green-800 text-green-600 dark:text-green-400 text-sm flex items-center gap-2">
-                                <IconCheck size={18} />
-                                {exportSuccess}
+                            {exportSuccess && (
+                                <div className="mb-4 p-3 rounded-xl bg-green-50 dark:bg-green-900/30 border border-green-100 dark:border-green-800 text-green-600 dark:text-green-400 text-sm flex items-center gap-2">
+                                    <IconCheck size={18} />
+                                    {exportSuccess}
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <ExportCard
+                                    title="Vehicle Records"
+                                    description="All vehicle entries and details"
+                                    icon={<IconClipboardList size={24} />}
+                                    onClick={() => handleExport("records")}
+                                    loading={exportLoading === "records"}
+                                />
+                                <ExportCard
+                                    title="Employees"
+                                    description="All employee data"
+                                    icon={<IconUsers size={24} />}
+                                    onClick={() => handleExport("employees")}
+                                    loading={exportLoading === "employees"}
+                                />
+                                <ExportCard
+                                    title="Attendance"
+                                    description="Attendance records"
+                                    icon={<IconCalendar size={24} />}
+                                    onClick={() => handleExport("attendance")}
+                                    loading={exportLoading === "attendance"}
+                                />
                             </div>
-                        )}
+                        </motion.div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <ExportCard
-                                title="Vehicle Records"
-                                description="All vehicle entries and details"
-                                icon={<IconClipboardList size={24} />}
-                                onClick={() => handleExport("records")}
-                                loading={exportLoading === "records"}
-                            />
-                            <ExportCard
-                                title="Employees"
-                                description="All employee data"
-                                icon={<IconUsers size={24} />}
-                                onClick={() => handleExport("employees")}
-                                loading={exportLoading === "employees"}
-                            />
-                            <ExportCard
-                                title="Attendance"
-                                description="Attendance records"
-                                icon={<IconCalendar size={24} />}
-                                onClick={() => handleExport("attendance")}
-                                loading={exportLoading === "attendance"}
-                            />
-                        </div>
-                    </motion.div>
-
-                    {/* System Info */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.4 }}
-                        className="bg-white dark:bg-neutral-800 rounded-[2rem] border border-neutral-200 dark:border-neutral-700 p-6 shadow-sm lg:col-span-2"
-                    >
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-500">
-                                <IconInfoCircle size={22} />
+                        {/* System Info */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.4 }}
+                            className="bg-white dark:bg-neutral-800 rounded-[2rem] border border-neutral-200 dark:border-neutral-700 p-6 shadow-sm lg:col-span-2"
+                        >
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-500">
+                                    <IconInfoCircle size={22} />
+                                </div>
+                                <h2 className="text-xl font-bold text-neutral-900 dark:text-white">System Information</h2>
                             </div>
-                            <h2 className="text-xl font-bold text-neutral-900 dark:text-white">System Information</h2>
-                        </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                            <InfoCard label="App Version" value="1.0.0" />
-                            <InfoCard label="Database" value="PostgreSQL" />
-                            <InfoCard label="Framework" value="Next.js 15" />
-                            <InfoCard label="Status" value="Online" status="success" />
-                        </div>
-                    </motion.div>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                <InfoCard label="App Version" value="1.0.0" />
+                                <InfoCard label="Database" value="PostgreSQL" />
+                                <InfoCard label="Framework" value="Next.js 16" />
+                                <InfoCard label="Status" value="Online" status="success" />
+                            </div>
+                        </motion.div>
+
+                        {/* Download App */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.5 }}
+                            className="bg-white dark:bg-neutral-800 rounded-[2rem] border border-neutral-200 dark:border-neutral-700 p-6 shadow-sm lg:col-span-2"
+                        >
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#E01E1F]/20 to-[#FEA519]/20 flex items-center justify-center text-[#E01E1F]">
+                                    <IconDeviceMobile size={22} />
+                                </div>
+                                <h2 className="text-xl font-bold text-neutral-900 dark:text-white">Download App</h2>
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+                                {/* App Info */}
+                                <div className="flex items-center gap-4 flex-1">
+                                    <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[#E01E1F] to-[#FEA519] flex items-center justify-center shadow-lg shadow-red-500/20">
+                                        <IconSettings className="text-white" size={32} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-neutral-900 dark:text-white text-lg">VBCL Tracker</h3>
+                                        <p className="text-neutral-500 dark:text-neutral-400 text-sm">Install for faster access & offline support</p>
+                                    </div>
+                                </div>
+
+                                {/* Install Button */}
+                                <div className="w-full sm:w-auto">
+                                    {isPWAInstalled ? (
+                                        <div className="flex items-center gap-2 px-6 py-3 rounded-xl bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 font-semibold">
+                                            <IconCircleCheck size={20} />
+                                            App Installed
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col gap-3 w-full sm:w-auto">
+                                            <button
+                                                onClick={installPrompt ? handleInstallApp : () => {
+                                                    alert("To install this app:\n\n• Chrome/Edge: Click the install icon in the address bar, or Menu → 'Install app'\n\n• Safari (iOS): Tap Share → 'Add to Home Screen'\n\n• Firefox: Menu → 'Install'");
+                                                }}
+                                                disabled={isInstalling}
+                                                className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 bg-gradient-to-r from-[#E01E1F] to-[#FEA519] text-white font-bold rounded-xl shadow-lg shadow-red-500/20 hover:opacity-90 transition-all disabled:opacity-50"
+                                            >
+                                                {isInstalling ? (
+                                                    <IconLoader2 className="animate-spin" size={20} />
+                                                ) : (
+                                                    <IconDownload size={20} />
+                                                )}
+                                                {isInstalling ? "Installing..." : "Install App"}
+                                            </button>
+                                            {!installPrompt && (
+                                                <p className="text-xs text-neutral-400 dark:text-neutral-500 text-center sm:text-left">
+                                                    Click for installation instructions
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Features */}
+                            <div className="mt-6 pt-6 border-t border-neutral-200 dark:border-neutral-700">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                    <div className="flex items-center gap-2 text-sm">
+                                        <div className="h-2 w-2 rounded-full bg-green-500" />
+                                        <span className="text-neutral-600 dark:text-neutral-400">Offline access</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-sm">
+                                        <div className="h-2 w-2 rounded-full bg-blue-500" />
+                                        <span className="text-neutral-600 dark:text-neutral-400">Faster loading</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-sm">
+                                        <div className="h-2 w-2 rounded-full bg-purple-500" />
+                                        <span className="text-neutral-600 dark:text-neutral-400">Push notifications</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-sm">
+                                        <div className="h-2 w-2 rounded-full bg-amber-500" />
+                                        <span className="text-neutral-600 dark:text-neutral-400">Full screen</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
                 </div>
-            </div>
             </main>
         </div>
     );

@@ -49,3 +49,11 @@ next-env.d.ts
 
 # antigravity (AI assistant files)
 /antigravity
+
+# PWA - auto-generated files (only if using next-pwa plugin)
+# /public/sw.js - keeping our manual sw.js
+/public/sw.js.map
+/public/workbox-*.js
+/public/workbox-*.js.map
+/public/worker-*.js
+/public/worker-*.js.map
