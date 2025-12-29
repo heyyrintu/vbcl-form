@@ -9,10 +9,27 @@
     "orientation": "portrait-primary",
     "scope": "/",
     "lang": "en",
-    "id": "/",
+    "id": "vbcl-tracker-pwa",
     "categories": [
         "business",
         "productivity"
+    ],
+    "prefer_related_applications": false,
+    "screenshots": [
+        {
+            "src": "/screenshots/screenshot-wide.png",
+            "sizes": "1280x720",
+            "type": "image/png",
+            "form_factor": "wide",
+            "label": "Dashboard view on desktop"
+        },
+        {
+            "src": "/screenshots/screenshot-mobile.png",
+            "sizes": "750x1334",
+            "type": "image/png",
+            "form_factor": "narrow",
+            "label": "Dashboard view on mobile"
+        }
     ],
     "icons": [
         {
