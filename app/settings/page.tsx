@@ -58,6 +58,7 @@ export default function SettingsPage() {
     const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
     const [isPWAInstalled, setIsPWAInstalled] = useState(false);
     const [isInstalling, setIsInstalling] = useState(false);
+    const [isIOS, setIsIOS] = useState(false);
 
     useEffect(() => {
         if (status === "loading") return;
@@ -77,24 +78,43 @@ export default function SettingsPage() {
 
     // PWA Install prompt detection
     useEffect(() => {
+        // Detect iOS device
+        const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        setIsIOS(iOS);
+
         // Check if already installed
         const checkInstalled = () => {
             if (window.matchMedia("(display-mode: standalone)").matches) {
                 setIsPWAInstalled(true);
             }
+            // Also check iOS standalone mode
+            if ((window.navigator as unknown as { standalone?: boolean }).standalone === true) {
+                setIsPWAInstalled(true);
+            }
         };
         checkInstalled();
+
+        // Check if prompt was already captured globally (by ServiceWorkerRegistration)
+        const globalPrompt = (window as unknown as { deferredPrompt?: BeforeInstallPromptEvent }).deferredPrompt;
+        if (globalPrompt) {
+            setInstallPrompt(globalPrompt);
+        }
 
         // Listen for beforeinstallprompt event
         const handleBeforeInstallPrompt = (e: Event) => {
             e.preventDefault();
             setInstallPrompt(e as BeforeInstallPromptEvent);
+            // Also store globally for other components
+            (window as unknown as { deferredPrompt?: BeforeInstallPromptEvent }).deferredPrompt = e as BeforeInstallPromptEvent;
         };
 
         // Listen for app installed event
         const handleAppInstalled = () => {
             setIsPWAInstalled(true);
             setInstallPrompt(null);
+            // Clear global prompt
+            (window as unknown as { deferredPrompt?: BeforeInstallPromptEvent }).deferredPrompt = undefined;
         };
 
         window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
@@ -516,7 +536,11 @@ export default function SettingsPage() {
                                         <div className="flex flex-col gap-3 w-full sm:w-auto">
                                             <button
                                                 onClick={installPrompt ? handleInstallApp : () => {
-                                                    alert("To install this app:\n\n• Chrome/Edge: Click the install icon in the address bar, or Menu → 'Install app'\n\n• Safari (iOS): Tap Share → 'Add to Home Screen'\n\n• Firefox: Menu → 'Install'");
+                                                    if (isIOS) {
+                                                        alert("📱 Install on iOS:\n\n1. Tap the Share button (square with arrow)\n2. Scroll down and tap 'Add to Home Screen'\n3. Tap 'Add' to confirm");
+                                                    } else {
+                                                        alert("📱 Install this app:\n\n• Android Chrome: Tap the menu (⋮) → 'Add to Home screen' or 'Install app'\n\n• Desktop Chrome/Edge: Click the install icon in the address bar\n\n• Firefox: Menu → 'Install'");
+                                                    }
                                                 }}
                                                 disabled={isInstalling}
                                                 className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 bg-gradient-to-r from-[#E01E1F] to-[#FEA519] text-white font-bold rounded-xl shadow-lg shadow-red-500/20 hover:opacity-90 transition-all disabled:opacity-50"
@@ -530,7 +554,7 @@ export default function SettingsPage() {
                                             </button>
                                             {!installPrompt && (
                                                 <p className="text-xs text-neutral-400 dark:text-neutral-500 text-center sm:text-left">
-                                                    Click for installation instructions
+                                                    {isIOS ? "Tap for iOS installation steps" : "Tap for installation steps"}
                                                 </p>
                                             )}
                                         </div>
