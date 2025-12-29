@@ -93,7 +93,7 @@ export const DesktopSidebar = ({
     <>
       <motion.div
         className={cn(
-          "h-screen hidden md:flex md:flex-col w-[300px] shrink-0 px-4 py-4 backdrop-blur-md relative z-50",
+          "h-screen hidden lg:flex lg:flex-col w-[300px] shrink-0 px-4 py-4 backdrop-blur-md relative z-50",
           className
         )}
         style={{
@@ -154,68 +154,9 @@ export const MobileSidebar = ({
   children,
   ...props
 }: React.ComponentProps<"div">) => {
-  const { open, setOpen } = useSidebar();
-  const [mounted] = useState<boolean>(() => typeof document !== "undefined");
-
-  return (
-    <>
-      <div
-        className={cn(
-          "h-10 flex flex-row md:hidden items-center justify-between w-full px-4 py-4 backdrop-blur-md relative",
-          className
-        )}
-        style={{
-          background: 'linear-gradient(to right, rgba(224, 30, 31, 0.2), rgba(254, 165, 25, 0.2))',
-        }}
-        {...props}
-      >
-        <div
-          className="absolute bottom-0 left-0 right-0 h-[1px]"
-          style={{
-            background: 'linear-gradient(to right, rgba(224, 30, 31, 0.35), rgba(254, 165, 25, 0.35))'
-          }}
-        />
-        <div className="flex justify-end z-20 w-full">
-          <IconMenu2
-            className="text-white dark:text-white cursor-pointer"
-            onClick={() => setOpen(!open)}
-          />
-        </div>
-      </div>
-      {mounted && createPortal(
-        <AnimatePresence>
-          {open && (
-            <motion.div
-              initial={{ x: "-100%", opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: "-100%", opacity: 0 }}
-              transition={{
-                duration: 0.3,
-                ease: "easeInOut",
-              }}
-              className={cn(
-                "fixed h-full w-full inset-0 p-10 flex flex-col justify-between z-[9999] backdrop-blur-md bg-white dark:bg-gray-900",
-                className
-              )}
-              style={{
-                background:
-                  "linear-gradient(to bottom right, rgba(224, 30, 31, 0.2), rgba(254, 165, 25, 0.2))",
-              }}
-            >
-              <div
-                className="absolute right-10 top-10 z-50 text-white dark:text-white cursor-pointer"
-                onClick={() => setOpen(false)}
-              >
-                <IconX />
-              </div>
-              {children}
-            </motion.div>
-          )}
-        </AnimatePresence>,
-        document.body
-      )}
-    </>
-  );
+  // Mobile sidebar is now replaced by bottom navigation
+  // This component is hidden on mobile/tablet - bottom nav handles navigation
+  return null;
 };
 
 export const SidebarLink = ({

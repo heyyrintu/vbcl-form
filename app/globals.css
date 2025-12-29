@@ -166,3 +166,28 @@
     radial-gradient(circle at 50% 50%, rgba(224, 30, 31, 0.06) 0%, rgba(224, 30, 31, 0.06) 35%, transparent 36%),
     radial-gradient(circle at 50% 50%, rgba(254, 165, 25, 0.06) 0%, rgba(254, 165, 25, 0.06) 30%, transparent 31%);
 }
+
+/*
+  Mobile/Tablet bottom navigation safe area
+  Add padding to main content areas on mobile and tablet to prevent
+  content from being hidden behind the bottom navigation
+*/
+@media (max-width: 1023px) {
+  .has-bottom-nav {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Auto-apply to main content area */
+  main {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Safe area inset utilities for iOS devices with notch/home indicator */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}

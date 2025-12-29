@@ -17,6 +17,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
+import BottomNavigation from "./BottomNavigation";
 
 export default function AppSidebar() {
   const pathname = usePathname();
@@ -95,32 +96,38 @@ export default function AppSidebar() {
   });
 
   return (
-    <Sidebar open={open} setOpen={setOpen}>
-      <SidebarBody className="justify-between gap-10">
-        <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
-          <Logo />
-          <div className="mt-8 flex flex-col gap-2">
-            {links.map((link, idx) => (
-              <SidebarLink
-                key={idx}
-                link={link}
-                isActive={pathname === link.href}
-              />
-            ))}
+    <>
+      {/* Desktop Sidebar */}
+      <Sidebar open={open} setOpen={setOpen}>
+        <SidebarBody className="justify-between gap-10">
+          <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
+            <Logo />
+            <div className="mt-8 flex flex-col gap-2">
+              {links.map((link, idx) => (
+                <SidebarLink
+                  key={idx}
+                  link={link}
+                  isActive={pathname === link.href}
+                />
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Profile Section */}
-        <div className="border-t border-neutral-200 dark:border-neutral-700 pt-2">
-          <UserProfile
-            name={session?.user?.name || session?.user?.email || "User"}
-            role={session?.user?.role || "USER"}
-            image={session?.user?.image}
-            onLogout={handleLogout}
-          />
-        </div>
-      </SidebarBody>
-    </Sidebar>
+          {/* Profile Section */}
+          <div className="border-t border-neutral-200 dark:border-neutral-700 pt-2">
+            <UserProfile
+              name={session?.user?.name || session?.user?.email || "User"}
+              role={session?.user?.role || "USER"}
+              image={session?.user?.image}
+              onLogout={handleLogout}
+            />
+          </div>
+        </SidebarBody>
+      </Sidebar>
+
+      {/* Mobile/Tablet Bottom Navigation */}
+      <BottomNavigation />
+    </>
   );
 }
 
