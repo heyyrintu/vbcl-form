@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AppSidebar from "@/components/AppSidebar";
 import { BGPattern } from "@/components/ui/bg-pattern";
@@ -51,7 +51,32 @@ const ROLE_CONFIG: Record<string, { color: string; bgColor: string; order: numbe
   "Helper": { color: "text-gray-700 dark:text-gray-400", bgColor: "bg-gray-100 dark:bg-gray-700/30", order: 9 },
 };
 
+// Loading fallback component
+function LoadingFallback() {
+  return (
+    <div className="flex flex-col md:flex-row w-full h-screen overflow-hidden bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
+      <AppSidebar />
+      <main className="flex-1 overflow-y-auto relative z-10 flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <span className="text-gray-600 dark:text-gray-400 text-lg">Loading...</span>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+// Main page wrapper with Suspense
 export default function EmployeeAttendancePage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <EmployeeAttendanceContent />
+    </Suspense>
+  );
+}
+
+// Inner component that uses useSearchParams
+function EmployeeAttendanceContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
