@@ -341,17 +341,6 @@ export default function Dashboard() {
                     </p>
                   </div>
 
-                  {sortedRecords.length > 0 && (
-                    <Button
-                      onClick={exportToExcel}
-                      variant="gradient"
-                      size="lg"
-                      className="w-full sm:w-auto h-12 sm:h-14 px-8 text-lg shadow-xl shadow-primary/20 hover:shadow-primary/40 hover:scale-105 transition-all duration-300 group/btn"
-                    >
-                      <Download className="w-6 h-6 mr-2 group-hover/btn:scale-110 transition-transform duration-300" />
-                      Download Excel
-                    </Button>
-                  )}
                 </div>
               </div>
             </div>
@@ -445,6 +434,18 @@ export default function Dashboard() {
                     </Button>
                   )}
                 </div>
+
+                {sortedRecords.length > 0 && (
+                  <Button
+                    onClick={exportToExcel}
+                    variant="gradient"
+                    size="sm"
+                    className="shrink-0 h-9 px-4 w-full lg:w-auto text-sm shadow-md shadow-primary/20 hover:shadow-primary/40"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download Excel
+                  </Button>
+                )}
               </div>
             </div>
 
