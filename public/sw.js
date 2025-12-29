@@ -1,22 +1,33 @@
 // Service Worker for VBCL Alwar Production Tracker PWA
-const CACHE_NAME = 'vbcl-tracker-v1';
+const CACHE_NAME = 'vbcl-tracker-v3';
 const OFFLINE_URL = '/offline';
 
-// Assets to cache on install
+// Static assets to cache on install (only files that definitely exist)
 const STATIC_ASSETS = [
-    '/',
-    '/offline',
     '/manifest.json',
+    '/icons/icon-72x72.png',
+    '/icons/icon-96x96.png',
+    '/icons/icon-128x128.png',
+    '/icons/icon-144x144.png',
+    '/icons/icon-152x152.png',
     '/icons/icon-192x192.png',
+    '/icons/icon-384x384.png',
     '/icons/icon-512x512.png',
 ];
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
+        caches.open(CACHE_NAME).then(async (cache) => {
             console.log('[SW] Caching static assets');
-            return cache.addAll(STATIC_ASSETS);
+            // Cache static assets
+            await cache.addAll(STATIC_ASSETS);
+            // Try to cache offline page separately (might fail in dev)
+            try {
+                await cache.add(OFFLINE_URL);
+            } catch (e) {
+                console.log('[SW] Could not cache offline page:', e);
+            }
         })
     );
     self.skipWaiting();
