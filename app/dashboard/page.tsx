@@ -286,7 +286,7 @@ export default function Dashboard() {
 
     const ws = XLSX.utils.json_to_sheet(excelData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "All Entries");
+    XLSX.utils.book_append_sheet(wb, ws, "Vehicle Details");
 
     const colWidths = Object.keys(excelData[0] || {}).map((key) => ({
       wch: Math.max(key.length, 15),

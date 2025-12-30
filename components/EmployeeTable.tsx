@@ -174,7 +174,7 @@ export default function EmployeeTable() {
               <Users className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">All Employees</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Employee Directory</h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 {filteredEmployees.length} of {employees.length} employees
               </p>

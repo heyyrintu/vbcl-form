@@ -17,6 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import {
   Field,
   FieldDescription,
@@ -630,19 +632,21 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <Field data-invalid={!!fieldErrors.shift}>
-                        <FieldLabel htmlFor="shift" className="text-gray-700 dark:text-gray-300 font-medium">Shift</FieldLabel>
-                        <Select
+                        <FieldLabel className="text-gray-700 dark:text-gray-300 font-medium mb-3">Shift</FieldLabel>
+                        <RadioGroup
                           value={formData.shift}
                           onValueChange={(value) => handleSelectChange("shift", value)}
+                          className="flex flex-col space-y-2"
                         >
-                          <SelectTrigger id="shift" className="w-full">
-                            <SelectValue placeholder="Select shift" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Day Shift">Day Shift</SelectItem>
-                            <SelectItem value="Night Shift">Night Shift</SelectItem>
-                          </SelectContent>
-                        </Select>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="Day Shift" id="day-shift" />
+                            <Label htmlFor="day-shift" className="text-sm font-normal cursor-pointer text-gray-700 dark:text-gray-300">Day Shift</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="Night Shift" id="night-shift" />
+                            <Label htmlFor="night-shift" className="text-sm font-normal cursor-pointer text-gray-700 dark:text-gray-300">Night Shift</Label>
+                          </div>
+                        </RadioGroup>
                       </Field>
 
                       <Field>
@@ -798,19 +802,21 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                     </Field>
 
                     <Field>
-                      <FieldLabel htmlFor="type" className="text-gray-700 dark:text-gray-300 font-medium">Type</FieldLabel>
-                      <Select
+                      <FieldLabel className="text-gray-700 dark:text-gray-300 font-medium mb-3">Type</FieldLabel>
+                      <RadioGroup
                         value={formData.type}
                         onValueChange={(value) => handleSelectChange("type", value)}
+                        className="flex flex-col space-y-2"
                       >
-                        <SelectTrigger id="type" className="w-full">
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="PTS">PTS</SelectItem>
-                          <SelectItem value="PDI">PDI</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="PTS" id="type-pts" />
+                          <Label htmlFor="type-pts" className="text-sm font-normal cursor-pointer text-gray-700 dark:text-gray-300">PTS</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="PDI" id="type-pdi" />
+                          <Label htmlFor="type-pdi" className="text-sm font-normal cursor-pointer text-gray-700 dark:text-gray-300">PDI</Label>
+                        </div>
+                      </RadioGroup>
                     </Field>
 
                     <Field>
@@ -880,6 +886,20 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                       </Field>
                     </FieldGroup>
                   </FieldSet>
+                </div>
+
+                {/* Action Guidelines */}
+                <div className="space-y-2 pb-20 md:pb-4">
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                      💾 <strong>Save:</strong> Save details any time
+                    </p>
+                  </div>
+                  <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                    <p className="text-sm text-amber-800 dark:text-amber-200">
+                      ✅ <strong>Submit:</strong> Submit only after the vehicle with OUT-TIME
+                    </p>
+                  </div>
                 </div>
 
               </form>

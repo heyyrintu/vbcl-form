@@ -9,8 +9,8 @@ import { cn } from "@/lib/utils";
 const routeTitles: Record<string, string> = {
   "/": "Home",
   "/dashboard": "VBCL Alwar Dashboard",
-  "/all-entries": "All Entries",
-  "/employees": "All Employees",
+  "/all-entries": "Vehicle Details",
+  "/employees": "Employee Directory",
   "/employee-attendance": "Employee Attendance",
   "/admin/users": "Admin Users",
   "/settings": "Settings",

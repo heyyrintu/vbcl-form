@@ -46,7 +46,7 @@ export default function AppSidebar() {
       ),
     },
     {
-      label: "All Entries",
+      label: "Vehicle Details",
       href: "/all-entries",
       accessKey: "all-entries",
       icon: (
@@ -54,7 +54,7 @@ export default function AppSidebar() {
       ),
     },
     {
-      label: "All Employees",
+      label: "Employee Directory",
       href: "/employees",
       accessKey: "employees",
       icon: (

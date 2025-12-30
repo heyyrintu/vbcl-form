@@ -39,14 +39,14 @@ export default function BottomNavigation() {
             activeIcon: <IconHome className="w-6 h-6" stroke={2} />,
         },
         {
-            label: "Entries",
+            label: "Vehicles",
             href: "/all-entries",
             accessKey: "all-entries",
             icon: <IconFileText className="w-6 h-6" stroke={1.5} />,
             activeIcon: <IconFileText className="w-6 h-6" stroke={2} />,
         },
         {
-            label: "Team",
+            label: "Directory",
             href: "/employees",
             accessKey: "employees",
             icon: <IconUsers className="w-6 h-6" stroke={1.5} />,

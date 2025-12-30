@@ -35,8 +35,8 @@ interface User {
 
 const ALL_PAGES = [
     { id: "dashboard", label: "Dashboard", icon: IconLayoutDashboard, description: "Main dashboard with stats" },
-    { id: "employees", label: "Employees", icon: IconUsers, description: "Employee management" },
-    { id: "all-entries", label: "All Entries", icon: IconClipboardList, description: "Vehicle entry records" },
+    { id: "employees", label: "Employee Directory", icon: IconUsers, description: "Employee management" },
+    { id: "all-entries", label: "Vehicle Details", icon: IconClipboardList, description: "Vehicle entry records" },
     { id: "employee-attendance", label: "Attendance", icon: IconCalendar, description: "Attendance tracker" },
     { id: "admin", label: "Admin Panel", icon: IconSettings, description: "User management (ADMIN only)" },
 ];

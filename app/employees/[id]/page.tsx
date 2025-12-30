@@ -289,9 +289,9 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                                 <button
                                     onClick={() => router.push("/employees")}
                                     className="text-gray-600 dark:text-gray-400 hover:text-[#DE1C1C] dark:hover:text-[#FEA519] transition-colors font-medium"
-                                    aria-label="Return to all employees"
+                                    aria-label="Return to employee directory"
                                 >
-                                    All Employees
+                                    Employee Directory
                                 </button>
                                 <span className="text-gray-400">/</span>
                                 <span className="text-gray-900 dark:text-white font-medium">{employee?.name}</span>
@@ -303,11 +303,11 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                     <button
                         onClick={fromPage === 'attendance' ? handleReturnToAttendance : () => router.push("/employees")}
                         className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6 transition-colors"
-                        aria-label={fromPage === 'attendance' ? 'Return to attendance summary' : 'Back to all employees'}
+                        aria-label={fromPage === 'attendance' ? 'Return to attendance summary' : 'Back to employee directory'}
                     >
                         <ArrowLeft className="w-4 h-4" />
                         <span className="font-medium">
-                            {fromPage === 'attendance' ? 'Back to Attendance Summary' : 'Back to All Employees'}
+                            {fromPage === 'attendance' ? 'Back to Attendance Summary' : 'Back to Employee Directory'}
                         </span>
                     </button>
 
