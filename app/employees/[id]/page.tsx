@@ -48,7 +48,7 @@ interface AttendanceData {
 }
 
 const onroleRoles = ["Supervisor", "Manager", "Assistant Manager", "Senior Associate", "Associate"];
-const offroleRoles = ["Painter", "Fitter", "Electrician", "Helper"];
+const offroleRoles = ["Painter", "Fitter", "Electrician", "Helper", "Senior Operator", "Fitter-RSO"];
 
 export default function EmployeeProfilePage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);

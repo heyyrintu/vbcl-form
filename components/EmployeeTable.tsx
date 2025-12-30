@@ -540,6 +540,8 @@ export default function EmployeeTable() {
                       <option value="Fitter">Fitter</option>
                       <option value="Electrician">Electrician</option>
                       <option value="Helper">Helper</option>
+                      <option value="Senior Operator">Senior Operator</option>
+                      <option value="Fitter-RSO">Fitter-RSO</option>
                     </>
                   )}
                 </select>
