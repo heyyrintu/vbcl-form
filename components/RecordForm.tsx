@@ -30,6 +30,7 @@ import {
   FieldSet,
 } from "@/components/ui/field";
 import EmployeeSelector from "@/components/EmployeeSelector";
+import { HelpCircle } from "lucide-react";
 import type { ProductionRecord } from "@/types/record";
 
 interface Employee {
@@ -107,6 +108,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(true);
   const [dateValue, setDateValue] = useState<Dayjs | null>(null);
   const [inTimeValue, setInTimeValue] = useState<Dayjs | null>(null);
   const [outTimeValue, setOutTimeValue] = useState<Dayjs | null>(null);
@@ -920,6 +922,16 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                   </span>
                 )}
               </div>
+              {/* Help Button */}
+              <button
+                type="button"
+                onClick={() => setShowHelpModal(true)}
+                className="text-gray-500 hover:text-[#DE1C1C] dark:text-gray-400 dark:hover:text-[#FEA519] transition-colors"
+                aria-label="Show help"
+              >
+                <HelpCircle className="w-5 h-5" />
+              </button>
+              
               {/* Mobile: Show buttons in a row, Desktop: Show in a row */}
               <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
                 <Button
@@ -954,6 +966,47 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
           </div>
         </div>
       </div>
+
+      {/* Help Modal */}
+      {
+        showHelpModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-[120]" onClick={() => setShowHelpModal(false)}>
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-md w-full p-4 sm:p-6 mx-2 border border-gray-200 dark:border-gray-800" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Action Guide</h3>
+                <button
+                  onClick={() => setShowHelpModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="space-y-3">
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    💾 <strong>Save:</strong> Save details any time
+                  </p>
+                </div>
+                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    ✅ <strong>Submit:</strong> Submit only after the vehicle with OUT-TIME
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4">
+                <Button
+                  onClick={() => setShowHelpModal(false)}
+                  className="w-full"
+                >
+                  Got it
+                </Button>
+              </div>
+            </div>
+          </div>
+        )
+      }
 
       {/* Submit Confirmation Modal */}
       {
