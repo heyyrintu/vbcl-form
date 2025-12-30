@@ -101,7 +101,6 @@ export default function AppSidebar() {
       <Sidebar open={open} setOpen={setOpen}>
         <SidebarBody className="justify-between gap-10">
           <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
-            <Logo />
             <div className="mt-8 flex flex-col gap-2">
               {links.map((link, idx) => (
                 <SidebarLink
@@ -194,25 +193,18 @@ export const Logo = () => {
   return (
     <Link
       href="/dashboard"
-      className="relative z-20 flex items-center space-x-3 py-2 text-sm font-normal"
+      className="relative z-20 flex justify-center items-center py-2 text-sm font-normal"
     >
       <motion.img
         src="https://cdn.dribbble.com/userupload/45188200/file/49510167ef68236a40dd16a5212e595e.png?resize=400x400&vertical=center"
         alt="VBCL Alwar Logo"
         className="shrink-0 object-contain"
         animate={{
-          width: open ? 72 : 48,
-          height: open ? 72 : 48,
+          width: open ? 150 : 48,
+          height: open ? 120 : 48,
         }}
         transition={{ duration: 0.3, ease: "easeInOut" }}
       />
-      <motion.span
-        initial={{ opacity: 0 }}
-        animate={{ opacity: open ? 1 : 0 }}
-        className="font-medium whitespace-pre text-neutral-700 dark:text-neutral-200"
-      >
-        VBCL Alwar
-      </motion.span>
     </Link>
   );
 };

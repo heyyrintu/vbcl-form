@@ -223,68 +223,115 @@ export default function EmployeeTable() {
         {/* Table */}
         <div className="overflow-x-auto">
           {filteredEmployees.length > 0 ? (
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                    Employee ID
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                    Name
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                    Role
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                    Added On
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
+            <>
+              {/* Desktop Table - Hidden on Mobile */}
+              <table className="w-full hidden md:table">
+                <thead>
+                  <tr className="border-b border-gray-200 dark:border-gray-700">
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Employee ID
+                    </th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Name
+                    </th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Role
+                    </th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Added On
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredEmployees.map((employee) => (
+                    <tr
+                      key={employee.id}
+                      onClick={() => router.push(`/employees/${employee.id}`)}
+                      className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
+                    >
+                      <td className="py-3 px-4">
+                        <span className="font-mono text-sm text-gray-900 dark:text-gray-100 font-medium">
+                          {employee.employeeId}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#E01E1F] to-[#FEA519] flex items-center justify-center text-white text-xs font-bold">
+                            {employee.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {employee.name}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(
+                            employee.role
+                          )}`}
+                        >
+                          <Briefcase className="w-3 h-3" />
+                          {employee.role}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          {new Date(employee.createdAt).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Mobile Card View - Visible on Mobile Only */}
+              <div className="md:hidden space-y-3">
                 {filteredEmployees.map((employee) => (
-                  <tr
+                  <div
                     key={employee.id}
                     onClick={() => router.push(`/employees/${employee.id}`)}
-                    className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
+                    className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all cursor-pointer"
                   >
-                    <td className="py-3 px-4">
-                      <span className="font-mono text-sm text-gray-900 dark:text-gray-100 font-medium">
-                        {employee.employeeId}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#E01E1F] to-[#FEA519] flex items-center justify-center text-white text-xs font-bold">
-                          {employee.name.charAt(0).toUpperCase()}
-                        </div>
-                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {employee.name}
-                        </span>
+                    {/* Top Row: Avatar and Name */}
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#E01E1F] to-[#FEA519] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                        {employee.name.charAt(0).toUpperCase()}
                       </div>
-                    </td>
-                    <td className="py-3 px-4">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                          {employee.name}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                          ID: {employee.employeeId}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Bottom Row: Role and Date */}
+                    <div className="flex items-center justify-between gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
                       <span
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(
                           employee.role
                         )}`}
                       >
                         <Briefcase className="w-3 h-3" />
                         {employee.role}
                       </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                      <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                         {new Date(employee.createdAt).toLocaleDateString("en-US", {
-                          year: "numeric",
                           month: "short",
                           day: "numeric",
                         })}
                       </span>
-                    </td>
-                  </tr>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </>
           ) : (
             <div className="text-center py-12">
               <Users className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />

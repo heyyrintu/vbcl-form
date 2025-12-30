@@ -93,14 +93,14 @@ export const DesktopSidebar = ({
     <>
       <motion.div
         className={cn(
-          "h-screen hidden lg:flex lg:flex-col w-[300px] shrink-0 px-4 py-4 backdrop-blur-md relative z-50",
+          "h-screen hidden lg:flex lg:flex-col w-[250px] shrink-0 px-4 py-4 backdrop-blur-md relative z-50",
           className
         )}
         style={{
           background: 'linear-gradient(to bottom right, rgba(224, 30, 31, 0.2), rgba(254, 165, 25, 0.2))',
         }}
         animate={{
-          width: animate ? (isHovered ? "300px" : "60px") : "300px",
+          width: animate ? (isHovered ? "250px" : "60px") : "250px",
           paddingLeft: animate ? (isHovered ? "16px" : "8px") : "16px",
           paddingRight: animate ? (isHovered ? "16px" : "8px") : "16px",
         }}

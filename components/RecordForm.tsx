@@ -499,16 +499,10 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
     }
   };
 
-  // Handle close with unsaved changes warning
+  // Handle close without warning
   const handleClose = useCallback(() => {
-    if (hasUnsavedChanges) {
-      const confirmed = window.confirm(
-        'You have unsaved changes. Your data has been auto-saved and will be restored when you return. Are you sure you want to close?'
-      );
-      if (!confirmed) return;
-    }
     onClose();
-  }, [hasUnsavedChanges, onClose]);
+  }, [onClose]);
 
   // Handle cancel - clears auto-save data
   const handleCancel = useCallback(() => {
@@ -524,76 +518,99 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-[#DE1C1C]/20 to-slate-800 flex items-center justify-center p-0 z-50 overflow-hidden">
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleClose}></div>
-        <div className="relative bg-white rounded-none sm:rounded-xl shadow-2xl max-w-5xl w-full h-full sm:h-auto sm:max-h-[95vh] flex flex-col overflow-hidden">
-          {/* Header - Fixed */}
-          <div className="bg-gradient-to-r from-[#DE1C1C] to-[#C01818] text-white px-4 sm:px-6 py-4 sm:py-5 flex-shrink-0">
-            <div className="flex justify-between items-center">
-              <div className="flex-1">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-xl sm:text-2xl font-bold">
-                    {existingRecord ? "Edit Entry" : "New Entry"}
-                  </h2>
-                  {/* Auto-save indicator */}
-                  {autoSaveStatus !== 'idle' && (
-                    <span className="text-xs bg-white/20 px-2 py-1 rounded-full flex items-center gap-1">
-                      {autoSaveStatus === 'saving' ? (
-                        <>
-                          <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          <span>Saving...</span>
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                          <span>Auto-saved</span>
-                        </>
-                      )}
-                    </span>
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-0 z-[110] overflow-hidden">
+        <div className="absolute inset-0 backdrop-blur-md" onClick={handleClose}></div>
+        <div className="relative bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 rounded-none sm:rounded-2xl shadow-2xl max-w-5xl w-full h-full sm:h-auto sm:max-h-[95vh] flex flex-col overflow-hidden pb-0 sm:pb-0">
+          {/* Modern Mobile App Header */}
+          <div className="relative flex-shrink-0">
+            {/* iOS/Android Style Status Bar Safe Area */}
+            <div className="h-[env(safe-area-inset-top,0px)] bg-white dark:bg-gray-900"></div>
+            
+            {/* Header Content */}
+            <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50">
+              {/* Mobile Header - Clean & Minimal */}
+              <div className="px-4 py-3 relative flex items-center">
+                {/* Left: Back Button */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleClose}
+                  disabled={loading}
+                  className="h-9 w-9 rounded-full text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors z-10"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </Button>
+                
+                {/* Center: Title - Truly centered using inset-0 */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="flex flex-col items-center">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-gradient-to-r from-[#DE1C1C] to-[#FEA519]"></div>
+                      <h2 className="text-[15px] font-semibold tracking-tight bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 dark:from-gray-100 dark:via-gray-300 dark:to-gray-100 bg-clip-text text-transparent">
+                        {existingRecord ? "Edit Entry" : "New Entry"}
+                      </h2>
+                    </div>
+                    {/* Mobile Auto-save indicator - subtle dot */}
+                    {autoSaveStatus === 'saving' && (
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <div className="w-1 h-1 rounded-full bg-blue-500 animate-pulse"></div>
+                        <span className="text-[9px] font-medium text-blue-500/80">Saving...</span>
+                      </div>
+                    )}
+                    {autoSaveStatus === 'saved' && (
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <svg className="w-2.5 h-2.5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-[9px] font-medium text-green-500/80">Saved</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Right: Progress indicator - for balance */}
+                <div className="ml-auto w-9 h-9 flex items-center justify-center z-10">
+                  {loading && (
+                    <svg className="w-5 h-5 animate-spin text-[#DE1C1C]" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
                   )}
                 </div>
-                <p className="text-white/90 text-sm mt-1">
-                  {existingRecord ? "Update production record details" : "Create a new production record"}
-                  {hasRestoredDataRef.current && (
-                    <span className="ml-2 text-xs bg-yellow-500/20 px-2 py-0.5 rounded border border-yellow-500/30">
-                      Restored from auto-save
-                    </span>
-                  )}
-                </p>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleClose}
-                disabled={loading}
-                className="h-8 w-8 text-white hover:bg-white/20 hover:text-white flex-shrink-0"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </Button>
+              
+              {/* Progress Bar - thin accent line */}
+              <div className="h-0.5 bg-gradient-to-r from-[#DE1C1C] via-[#FEA519] to-[#DE1C1C]"></div>
             </div>
           </div>
 
           {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto pb-32 md:pb-0 bg-gradient-to-b from-gray-50/50 via-white to-gray-50/30 dark:from-gray-900/50 dark:via-gray-950 dark:to-gray-900/30">
             <div className="p-4 sm:p-6">
               {error && (
-                <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-md shadow-sm">
-                  <p className="text-sm text-red-800 font-medium">{error}</p>
+                <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <p className="text-sm text-red-800 dark:text-red-300 font-medium">{error}</p>
+                  </div>
                 </div>
               )}
 
-              <form className="space-y-6 sm:space-y-8">
-                <FieldSet className="bg-gray-50/50 rounded-lg p-3 sm:p-6 border border-gray-200">
+              <form className="space-y-5 sm:space-y-6">
+                {/* Basic Details Section */}
+                <div className="relative">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="h-6 w-1 rounded-full bg-gradient-to-b from-[#DE1C1C] to-[#FEA519]"></div>
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Basic Details</h3>
+                  </div>
+                  <FieldSet className="bg-white dark:bg-gray-900 rounded-xl p-4 sm:p-5 border border-gray-200 dark:border-gray-800 shadow-sm">
                   <FieldGroup className="space-y-4">
                     <Field data-invalid={!!fieldErrors.dronaSupervisor}>
-                      <FieldLabel htmlFor="dronaSupervisor" className="text-gray-900 font-semibold">
+                      <FieldLabel htmlFor="dronaSupervisor" className="text-gray-700 dark:text-gray-300 font-medium">
                         Drona Supervisor
                       </FieldLabel>
                       <Input
@@ -604,6 +621,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                         placeholder="Enter supervisor name"
                         required
                         aria-invalid={!!fieldErrors.dronaSupervisor}
+                        className="bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:border-[#DE1C1C] focus:ring-[#DE1C1C]/20"
                       />
                       {fieldErrors.dronaSupervisor && (
                         <FieldError>{fieldErrors.dronaSupervisor}</FieldError>
@@ -612,7 +630,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <Field data-invalid={!!fieldErrors.shift}>
-                        <FieldLabel htmlFor="shift" className="text-gray-900 font-semibold">Shift</FieldLabel>
+                        <FieldLabel htmlFor="shift" className="text-gray-700 dark:text-gray-300 font-medium">Shift</FieldLabel>
                         <Select
                           value={formData.shift}
                           onValueChange={(value) => handleSelectChange("shift", value)}
@@ -628,7 +646,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                       </Field>
 
                       <Field>
-                        <FieldLabel htmlFor="date" className="text-gray-900 font-semibold">Date</FieldLabel>
+                        <FieldLabel htmlFor="date" className="text-gray-700 dark:text-gray-300 font-medium">Date</FieldLabel>
                         <div className="flex gap-2">
                           <DatePicker
                             value={dateValue}
@@ -639,8 +657,9 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                                 fullWidth: true,
                                 sx: {
                                   '& .MuiOutlinedInput-root': {
-                                    borderRadius: '0.375rem',
+                                    borderRadius: '0.5rem',
                                     fontSize: '0.875rem',
+                                    backgroundColor: 'rgb(249 250 251)',
                                   },
                                 },
                               },
@@ -651,7 +670,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                             onClick={() => setDateValue(dayjs())}
                             variant="outline"
                             size="sm"
-                            className="shrink-0 px-3 whitespace-nowrap"
+                            className="shrink-0 px-3 whitespace-nowrap border-[#DE1C1C]/30 text-[#DE1C1C] hover:bg-[#DE1C1C]/10"
                           >
                             Now
                           </Button>
@@ -661,7 +680,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <Field>
-                        <FieldLabel htmlFor="inTime" className="text-gray-900 font-semibold">In Time</FieldLabel>
+                        <FieldLabel htmlFor="inTime" className="text-gray-700 dark:text-gray-300 font-medium">In Time</FieldLabel>
                         <div className="flex gap-2">
                           <TimePicker
                             value={inTimeValue}
@@ -672,8 +691,9 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                                 fullWidth: true,
                                 sx: {
                                   '& .MuiOutlinedInput-root': {
-                                    borderRadius: '0.375rem',
+                                    borderRadius: '0.5rem',
                                     fontSize: '0.875rem',
+                                    backgroundColor: 'rgb(249 250 251)',
                                   },
                                 },
                               },
@@ -684,7 +704,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                             onClick={() => setInTimeValue(dayjs())}
                             variant="outline"
                             size="sm"
-                            className="shrink-0 px-3 whitespace-nowrap"
+                            className="shrink-0 px-3 whitespace-nowrap border-[#DE1C1C]/30 text-[#DE1C1C] hover:bg-[#DE1C1C]/10"
                           >
                             Now
                           </Button>
@@ -692,7 +712,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                       </Field>
 
                       <Field>
-                        <FieldLabel htmlFor="outTime" className="text-gray-900 font-semibold">Out Time</FieldLabel>
+                        <FieldLabel htmlFor="outTime" className="text-gray-700 dark:text-gray-300 font-medium">Out Time</FieldLabel>
                         <div className="flex gap-2">
                           <TimePicker
                             value={outTimeValue}
@@ -703,8 +723,9 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                                 fullWidth: true,
                                 sx: {
                                   '& .MuiOutlinedInput-root': {
-                                    borderRadius: '0.375rem',
+                                    borderRadius: '0.5rem',
                                     fontSize: '0.875rem',
+                                    backgroundColor: 'rgb(249 250 251)',
                                   },
                                 },
                               },
@@ -715,7 +736,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                             onClick={() => setOutTimeValue(dayjs())}
                             variant="outline"
                             size="sm"
-                            className="shrink-0 px-3 whitespace-nowrap"
+                            className="shrink-0 px-3 whitespace-nowrap border-[#DE1C1C]/30 text-[#DE1C1C] hover:bg-[#DE1C1C]/10"
                           >
                             Now
                           </Button>
@@ -725,7 +746,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <Field data-invalid={!!fieldErrors.binNo}>
-                        <FieldLabel htmlFor="binNo" className="text-gray-900 font-semibold">Bin No</FieldLabel>
+                        <FieldLabel htmlFor="binNo" className="text-gray-700 dark:text-gray-300 font-medium">Bin No</FieldLabel>
                         <Input
                           id="binNo"
                           name="binNo"
@@ -734,6 +755,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                           placeholder="Enter bin number"
                           required
                           aria-invalid={!!fieldErrors.binNo}
+                          className="bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:border-[#DE1C1C] focus:ring-[#DE1C1C]/20"
                         />
                         {fieldErrors.binNo && (
                           <FieldError>{fieldErrors.binNo}</FieldError>
@@ -741,7 +763,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                       </Field>
 
                       <Field data-invalid={!!fieldErrors.modelNo}>
-                        <FieldLabel htmlFor="modelNo" className="text-gray-900 font-semibold">Model No</FieldLabel>
+                        <FieldLabel htmlFor="modelNo" className="text-gray-700 dark:text-gray-300 font-medium">Model No</FieldLabel>
                         <Input
                           id="modelNo"
                           name="modelNo"
@@ -750,6 +772,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                           placeholder="Enter model number"
                           required
                           aria-invalid={!!fieldErrors.modelNo}
+                          className="bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:border-[#DE1C1C] focus:ring-[#DE1C1C]/20"
                         />
                         {fieldErrors.modelNo && (
                           <FieldError>{fieldErrors.modelNo}</FieldError>
@@ -758,7 +781,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                     </div>
 
                     <Field data-invalid={!!fieldErrors.chassisNo}>
-                      <FieldLabel htmlFor="chassisNo" className="text-gray-900 font-semibold">Chassis No</FieldLabel>
+                      <FieldLabel htmlFor="chassisNo" className="text-gray-700 dark:text-gray-300 font-medium">Chassis No</FieldLabel>
                       <Input
                         id="chassisNo"
                         name="chassisNo"
@@ -767,6 +790,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                         placeholder="Enter chassis number"
                         required
                         aria-invalid={!!fieldErrors.chassisNo}
+                        className="bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:border-[#DE1C1C] focus:ring-[#DE1C1C]/20"
                       />
                       {fieldErrors.chassisNo && (
                         <FieldError>{fieldErrors.chassisNo}</FieldError>
@@ -774,7 +798,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                     </Field>
 
                     <Field>
-                      <FieldLabel htmlFor="type" className="text-gray-900 font-semibold">Type</FieldLabel>
+                      <FieldLabel htmlFor="type" className="text-gray-700 dark:text-gray-300 font-medium">Type</FieldLabel>
                       <Select
                         value={formData.type}
                         onValueChange={(value) => handleSelectChange("type", value)}
@@ -790,7 +814,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                     </Field>
 
                     <Field>
-                      <FieldLabel htmlFor="productionInchargeFromVBCL" className="text-gray-900 font-semibold">
+                      <FieldLabel htmlFor="productionInchargeFromVBCL" className="text-gray-700 dark:text-gray-300 font-medium">
                         Production incharge name from VBCL
                       </FieldLabel>
                       <Input
@@ -799,10 +823,12 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                         value={formData.productionInchargeFromVBCL}
                         onChange={handleInputChange}
                         placeholder="Enter production incharge name"
+                        className="bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:border-[#DE1C1C] focus:ring-[#DE1C1C]/20"
                       />
                     </Field>
                   </FieldGroup>
                 </FieldSet>
+                </div>
 
                 {/* Man Power Details - Hidden for now, will be used in future
                 <FieldSeparator className="my-6" />
@@ -829,35 +855,42 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                 <FieldSeparator className="my-6" />
                 */}
 
-                <FieldSet className="bg-gray-50/50 rounded-lg p-3 sm:p-6 border border-gray-200">
-                  <FieldGroup>
-                    <Field>
-                      <FieldLabel htmlFor="remarks" className="text-gray-900 font-semibold">Remarks</FieldLabel>
-                      <Textarea
-                        id="remarks"
-                        name="remarks"
-                        value={formData.remarks}
-                        onChange={handleInputChange}
-                        placeholder="Add any additional comments or notes"
-                        rows={3}
-                        className="resize-none"
-                      />
-                      <FieldDescription>
-                        Optional notes or comments about this entry
-                      </FieldDescription>
-                    </Field>
-                  </FieldGroup>
-                </FieldSet>
+                {/* Remarks Section */}
+                <div className="relative">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="h-6 w-1 rounded-full bg-gradient-to-b from-[#FEA519] to-[#DE1C1C]"></div>
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Additional Info</h3>
+                  </div>
+                  <FieldSet className="bg-white dark:bg-gray-900 rounded-xl p-4 sm:p-5 border border-gray-200 dark:border-gray-800 shadow-sm">
+                    <FieldGroup>
+                      <Field>
+                        <FieldLabel htmlFor="remarks" className="text-gray-700 dark:text-gray-300 font-medium">Remarks</FieldLabel>
+                        <Textarea
+                          id="remarks"
+                          name="remarks"
+                          value={formData.remarks}
+                          onChange={handleInputChange}
+                          placeholder="Add any additional comments or notes..."
+                          rows={3}
+                          className="resize-none bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:border-[#DE1C1C] focus:ring-[#DE1C1C]/20"
+                        />
+                        <FieldDescription className="text-gray-500 dark:text-gray-400">
+                          Optional notes or comments about this entry
+                        </FieldDescription>
+                      </Field>
+                    </FieldGroup>
+                  </FieldSet>
+                </div>
 
               </form>
             </div>
           </div>
 
-          {/* Footer - Fixed */}
-          <div className="bg-gray-50 border-t border-gray-200 px-4 sm:px-6 py-4 flex-shrink-0">
-            <div className="flex flex-col sm:flex-row gap-3 justify-between items-center">
-              {/* Auto-save status text */}
-              <div className="text-xs text-gray-500 flex items-center gap-2">
+          {/* Footer - Fixed at bottom */}
+          <div className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0 fixed bottom-0 md:relative left-0 right-0 z-10 shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.1)] md:shadow-none">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-between items-stretch sm:items-center">
+              {/* Auto-save status text - hidden on mobile to save space */}
+              <div className="hidden sm:flex text-xs text-gray-500 items-center gap-2">
                 {hasUnsavedChanges && autoSaveStatus === 'idle' && (
                   <span className="flex items-center gap-1">
                     <svg className="w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
@@ -867,13 +900,14 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                   </span>
                 )}
               </div>
-              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              {/* Mobile: Show buttons in a row, Desktop: Show in a row */}
+              <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
                 <Button
                   type="button"
                   onClick={handleCancel}
                   disabled={loading}
                   variant="outline"
-                  className="w-full sm:w-auto"
+                  className="flex-1 sm:flex-initial h-11 sm:h-10 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800"
                 >
                   Cancel
                 </Button>
@@ -882,7 +916,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                   onClick={handleSave}
                   disabled={loading}
                   variant="outline"
-                  className="w-full sm:w-auto"
+                  className="flex-1 sm:flex-initial h-11 sm:h-10 border-[#DE1C1C]/30 text-[#DE1C1C] hover:bg-[#DE1C1C]/10"
                 >
                   {loading ? "Saving..." : "Save"}
                 </Button>
@@ -891,7 +925,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                   onClick={() => setShowSubmitConfirm(true)}
                   disabled={loading}
                   variant="gradient"
-                  className="w-full sm:w-auto"
+                  className="flex-1 sm:flex-initial h-11 sm:h-10 shadow-lg shadow-[#DE1C1C]/20 hover:shadow-[#DE1C1C]/40 transition-all"
                 >
                   Submit
                 </Button>

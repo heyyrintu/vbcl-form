@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AppSidebar from "@/components/AppSidebar";
+import AppHeader from "@/components/AppHeader";
 import { BGPattern } from "@/components/ui/bg-pattern";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -305,6 +306,7 @@ function EmployeeAttendanceContent() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto relative z-10">
+        <AppHeader />
         <BGPattern
           variant="grid"
           mask="fade-edges"
@@ -314,65 +316,38 @@ function EmployeeAttendanceContent() {
         />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 relative">
-          {/* Hero Section */}
-          <div
-            className="relative mb-6 p-[1px] rounded-3xl overflow-hidden group"
-            style={{
-              background:
-                "linear-gradient(to right, rgba(224, 30, 31, 0.7), rgba(254, 165, 25, 0.7))",
-            }}
-          >
-            <div className="relative h-full w-full rounded-3xl overflow-hidden bg-white/40 dark:bg-gray-900/40 backdrop-blur-xl">
-              <div className="absolute inset-0 bg-white/40 dark:bg-gray-900/40 backdrop-blur-xl shadow-lg rounded-3xl transition-all duration-500 group-hover:shadow-2xl group-hover:bg-white/50 dark:group-hover:bg-gray-900/50" />
-
-              <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/20 rounded-full blur-3xl opacity-60 animate-pulse" />
-              <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-accent/20 rounded-full blur-3xl opacity-60 animate-pulse delay-1000" />
-
-              <div className="relative z-10 p-6 sm:p-8 flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
-                <div className="space-y-2">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider mb-2">
-                    <Users className="w-3 h-3" />
-                    Quick Attendance
-                  </div>
-                  <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-gray-900 dark:text-white tracking-tight">
-                    Employee{" "}
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">
-                      Attendance
-                    </span>
-                  </h1>
-                  <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 max-w-lg mx-auto md:mx-0">
-                    Mark attendance quickly with checkboxes. Select date, shift, and check employees who are present.
-                  </p>
-                </div>
-
-                {/* Quick Stats */}
-                <div className="flex gap-4">
-                  <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-xl p-4 text-center min-w-[90px]">
-                    <UserCheck className="w-6 h-6 text-green-500 mx-auto mb-1" />
-                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                      {presentCount}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Present</div>
-                  </div>
-                  <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-xl p-4 text-center min-w-[90px]">
-                    <UserX className="w-6 h-6 text-red-500 mx-auto mb-1" />
-                    <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-                      {absentCount}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Absent</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Controls Section */}
           <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md rounded-xl shadow-sm border border-white/20 dark:border-gray-700/50 p-4 sm:p-6 mb-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Quick Stats - Horizontal Layout */}
+            <div className="flex justify-center gap-8 sm:gap-16 mb-6 pb-6 border-b border-gray-200 dark:border-gray-700">
+              {/* Present Stat */}
+              <div className="flex flex-col items-center">
+                <UserCheck className="w-7 h-7 text-green-500 mb-1" />
+                <div className="text-3xl font-bold text-green-600 dark:text-green-400">
+                  {presentCount}
+                </div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Present</div>
+              </div>
+              
+              {/* Divider */}
+              <div className="w-px bg-gray-200 dark:bg-gray-700 self-stretch" />
+              
+              {/* Absent Stat */}
+              <div className="flex flex-col items-center">
+                <UserX className="w-7 h-7 text-red-500 mb-1" />
+                <div className="text-3xl font-bold text-red-600 dark:text-red-400">
+                  {absentCount}
+                </div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Absent</div>
+              </div>
+            </div>
+
+            {/* Filter Controls - Responsive Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 pb-6 border-b border-gray-200 dark:border-gray-700">
               {/* Date Picker */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  <Calendar className="inline w-4 h-4 mr-1" />
+                <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <Calendar className="w-4 h-4" />
                   Date
                 </label>
                 <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -383,6 +358,15 @@ function EmployeeAttendanceContent() {
                       textField: {
                         fullWidth: true,
                         size: "small",
+                        sx: {
+                          "& .MuiOutlinedInput-root": {
+                            borderRadius: "0.5rem",
+                            backgroundColor: "white",
+                            "&:hover .MuiOutlinedInput-notchedOutline": {
+                              borderColor: "#d1d5db",
+                            },
+                          },
+                        },
                       },
                     }}
                   />
@@ -391,15 +375,15 @@ function EmployeeAttendanceContent() {
 
               {/* Shift Selector */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  <Clock className="inline w-4 h-4 mr-1" />
+                <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <Clock className="w-4 h-4" />
                   Shift
                 </label>
                 <Select
                   value={selectedShift}
                   onValueChange={(value: "Day" | "Night") => setSelectedShift(value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-white dark:bg-gray-800">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -411,8 +395,8 @@ function EmployeeAttendanceContent() {
 
               {/* Search */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  <Search className="inline w-4 h-4 mr-1" />
+                <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <Search className="w-4 h-4" />
                   Search
                 </label>
                 <div className="relative">
@@ -421,7 +405,7 @@ function EmployeeAttendanceContent() {
                     placeholder="Search by name or ID..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pr-8"
+                    className="pr-9 bg-white dark:bg-gray-800"
                   />
                   <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 </div>
@@ -429,12 +413,12 @@ function EmployeeAttendanceContent() {
 
               {/* Role Filter */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  <Users className="inline w-4 h-4 mr-1" />
+                <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <Users className="w-4 h-4" />
                   Filter by Role
                 </label>
                 <Select value={roleFilter} onValueChange={setRoleFilter}>
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-white dark:bg-gray-800">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -449,46 +433,45 @@ function EmployeeAttendanceContent() {
               </div>
             </div>
 
-            {/* Quick Actions */}
-            <div className="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            {/* Quick Actions - Buttons Row */}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Select/Deselect buttons on left */}
               <button
                 onClick={selectAll}
                 disabled={allFilteredSelected}
                 className={cn(
-                  "inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200",
+                  "inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 border",
                   allFilteredSelected
-                    ? "bg-green-500 text-white border border-green-600 cursor-default"
-                    : "text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/40"
+                    ? "bg-green-500 text-white border-green-600 cursor-default"
+                    : "text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/40"
                 )}
               >
-                {allFilteredSelected ? (
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                ) : (
-                  <CheckSquare className="w-4 h-4 flex-shrink-0" />
-                )}
-                <span>{allFilteredSelected ? "All Selected" : "Select All"}</span>
+                <CheckSquare className="w-4 h-4 flex-shrink-0" />
+                <span>Select All</span>
               </button>
               <button
                 onClick={deselectAll}
                 disabled={noneFilteredSelected}
                 className={cn(
-                  "inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200",
+                  "inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 border",
                   noneFilteredSelected
-                    ? "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-600 cursor-default"
-                    : "text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/40"
+                    ? "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700 cursor-default"
+                    : "text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
                 )}
               >
                 <Square className="w-4 h-4 flex-shrink-0" />
                 <span>Deselect All</span>
               </button>
+              
+              {/* Spacer */}
               <div className="flex-1" />
+              
+              {/* Save button on right */}
               <Button
                 onClick={handleSaveAttendance}
                 disabled={saving || !selectedDate}
                 variant="gradient"
-                className="gap-2"
+                className="gap-2 px-5 py-2.5 text-sm font-medium shadow-md hover:shadow-lg transition-shadow"
               >
                 {saving ? (
                   <Loader2 className="w-4 h-4 animate-spin" />

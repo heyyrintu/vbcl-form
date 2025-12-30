@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import RecordForm from "@/components/RecordForm";
 import RecordList from "@/components/RecordList";
 import AppSidebar from "@/components/AppSidebar";
+import AppHeader from "@/components/AppHeader";
 import { BGPattern } from "@/components/ui/bg-pattern";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -191,91 +192,77 @@ export default function AllEntriesPage() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto relative z-10">
+        <AppHeader />
         {/* Subtle Grid Pattern Overlay */}
         <BGPattern variant="grid" mask="fade-edges" size={24} fill="rgba(222, 28, 28, 0.1)" className="absolute inset-0 pointer-events-none dark:opacity-30" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 relative">
-          {/* Hero Section */}
-          <div className="relative mb-8 sm:mb-10 p-[1px] rounded-3xl overflow-hidden group" style={{ background: 'linear-gradient(to right, rgba(224, 30, 31, 0.7), rgba(254, 165, 25, 0.7))' }}>
-            <div className="relative h-full w-full rounded-3xl overflow-hidden bg-white/40 dark:bg-gray-900/40 backdrop-blur-xl">
-              {/* Glassmorphism Background */}
-              <div className="absolute inset-0 bg-white/40 dark:bg-gray-900/40 backdrop-blur-xl shadow-lg rounded-3xl transition-all duration-500 group-hover:shadow-2xl group-hover:bg-white/50 dark:group-hover:bg-gray-900/50" />
-
-              {/* Decorative Gradient Blobs */}
-              <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/20 rounded-full blur-3xl opacity-60 animate-pulse" />
-              <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-accent/20 rounded-full blur-3xl opacity-60 animate-pulse delay-1000" />
-
-              <div className="relative z-10 p-6 sm:p-8 flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
-                <div className="space-y-2">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider mb-2">
-                    <LayoutDashboard className="w-3 h-3" />
-                    Production Dashboard
-                  </div>
-                  <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-gray-900 dark:text-white tracking-tight">
-                    Vehicle <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Tracker</span>
-                  </h1>
-                  <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 max-w-lg mx-auto md:mx-0">
-                    Monitor production flow, track vehicle status, and manage daily entries with ease.
-                  </p>
-                </div>
-
-                <Button
-                  onClick={handleNewEntry}
-                  variant="gradient"
-                  size="lg"
-                  className="w-full sm:w-auto h-12 sm:h-14 px-8 text-lg shadow-xl shadow-primary/20 hover:shadow-primary/40 hover:scale-105 transition-all duration-300 group/btn"
-                >
-                  <Plus className="w-6 h-6 mr-2 group-hover/btn:rotate-90 transition-transform duration-300" />
-                  New Entry
-                </Button>
-              </div>
-            </div>
-          </div>
-
           {/* Tabs */}
-          <div className="mb-6 sm:mb-8 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
-            <div className="flex items-center gap-6 border-b border-gray-200 dark:border-gray-800/60 min-w-max">
-              <button
-                onClick={() => setActiveTab("pending")}
-                className={`relative pb-4 px-2 font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === "pending"
-                  ? "text-primary"
-                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                  }`}
+          <div className="mb-6 sm:mb-8 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800/60">
+              <div className="flex items-center gap-6 overflow-x-auto scrollbar-hide">
+                <button
+                  onClick={() => setActiveTab("pending")}
+                  className={`relative pb-4 px-2 font-medium text-sm transition-all duration-300 flex items-center gap-2 whitespace-nowrap ${activeTab === "pending"
+                    ? "text-primary"
+                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                    }`}
+                >
+                  <Clock className="w-4 h-4" />
+                  Pending
+                  {pendingRecords.length > 0 && (
+                    <span className="ml-1 py-0.5 px-2 rounded-full text-xs bg-accent/20 text-accent-foreground dark:text-accent font-bold">
+                      {pendingRecords.length}
+                    </span>
+                  )}
+                  {activeTab === "pending" && (
+                    <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-t-full" />
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab("completed");
+                    setShowAllCompleted(false); // Reset when switching tabs
+                  }}
+                  className={`relative pb-4 px-2 font-medium text-sm transition-all duration-300 flex items-center gap-2 whitespace-nowrap ${activeTab === "completed"
+                    ? "text-primary"
+                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                    }`}
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  Completed
+                  {completedRecords.length > 0 && (
+                    <span className="ml-1 py-0.5 px-2 rounded-full text-xs bg-green-500/20 text-green-600 dark:text-green-400 font-bold">
+                      {completedRecords.length}
+                    </span>
+                  )}
+                  {activeTab === "completed" && (
+                    <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-t-full" />
+                  )}
+                </button>
+              </div>
+              
+              <Button
+                onClick={handleNewEntry}
+                variant="gradient"
+                size="default"
+                className="h-10 px-6 ml-4 shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all duration-300 group/btn hidden sm:flex shrink-0"
               >
-                <Clock className="w-4 h-4" />
-                Pending
-                {pendingRecords.length > 0 && (
-                  <span className="ml-1 py-0.5 px-2 rounded-full text-xs bg-accent/20 text-accent-foreground dark:text-accent font-bold">
-                    {pendingRecords.length}
-                  </span>
-                )}
-                {activeTab === "pending" && (
-                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-t-full" />
-                )}
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab("completed");
-                  setShowAllCompleted(false); // Reset when switching tabs
-                }}
-                className={`relative pb-4 px-2 font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === "completed"
-                  ? "text-primary"
-                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                  }`}
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                Completed
-                {completedRecords.length > 0 && (
-                  <span className="ml-1 py-0.5 px-2 rounded-full text-xs bg-green-500/20 text-green-600 dark:text-green-400 font-bold">
-                    {completedRecords.length}
-                  </span>
-                )}
-                {activeTab === "completed" && (
-                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-t-full" />
-                )}
-              </button>
+                <Plus className="w-5 h-5 mr-2 group-hover/btn:rotate-90 transition-transform duration-300" />
+                New Entry
+              </Button>
             </div>
           </div>
+
+          {/* Floating Action Button for Mobile */}
+          <Button
+            onClick={handleNewEntry}
+            variant="gradient"
+            size="default"
+            className="sm:hidden fixed bottom-20 right-4 z-30 h-14 w-14 rounded-full shadow-2xl shadow-primary/30 hover:shadow-primary/50 transition-all duration-300 group/fab p-0 flex items-center justify-center"
+          >
+            <Plus className="w-6 h-6 group-hover/fab:rotate-90 transition-transform duration-300" />
+          </Button>
 
           {/* Records List */}
           <div className="relative z-10 pb-20 md:pb-0">

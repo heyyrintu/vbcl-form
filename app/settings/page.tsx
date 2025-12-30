@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -21,9 +21,11 @@ import {
     IconInfoCircle,
     IconDeviceMobile,
     IconCircleCheck,
+    IconLogout,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import AppSidebar from "@/components/AppSidebar";
+import AppHeader from "@/components/AppHeader";
 
 // Type for the BeforeInstallPromptEvent
 interface BeforeInstallPromptEvent extends Event {
@@ -227,6 +229,10 @@ export default function SettingsPage() {
         }
     };
 
+    const handleLogout = async () => {
+        await signOut({ callbackUrl: "/login", redirect: true });
+    };
+
     const convertToCSV = (data: Record<string, unknown>[]) => {
         if (data.length === 0) return "";
         const headers = Object.keys(data[0]);
@@ -259,6 +265,7 @@ export default function SettingsPage() {
         <div className={cn("flex flex-col md:flex-row w-full h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-900 transition-colors duration-300")}>
             <AppSidebar />
             <main className="flex-1 overflow-y-auto relative z-10">
+                <AppHeader />
                 {/* 
               Fixed decorative background
               - Positioned using CSS background-position for precise alignment
@@ -268,6 +275,39 @@ export default function SettingsPage() {
                 <div className="app-fixed-bg" aria-hidden="true" />
 
                 <div className="max-w-4xl mx-auto space-y-6 p-4 lg:p-10">
+                    {/* Mobile Profile Section with Logout */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="md:hidden bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-200 dark:border-neutral-700 p-4 sm:p-6 shadow-sm"
+                    >
+                        <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-4">
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-gradient-to-br from-[#E01E1F] to-[#FEA519] flex items-center justify-center text-white text-lg sm:text-xl font-bold shadow-lg shadow-red-500/20 flex-shrink-0">
+                                    {session?.user?.name?.charAt(0).toUpperCase() || "U"}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <div className="font-bold text-base sm:text-lg text-neutral-900 dark:text-white truncate">
+                                        {session?.user?.name || "User"}
+                                    </div>
+                                    <div className={cn(
+                                        "text-xs sm:text-sm font-medium capitalize",
+                                        session?.user?.role === "ADMIN" ? "text-purple-500" : "text-neutral-500 dark:text-neutral-400"
+                                    )}>
+                                        {session?.user?.role?.toLowerCase() || "user"}
+                                    </div>
+                                </div>
+                            </div>
+                            <button
+                                onClick={handleLogout}
+                                className="w-full xs:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors border border-red-200 dark:border-red-800 font-medium flex-shrink-0"
+                            >
+                                <IconLogout size={18} />
+                                <span className="text-sm">Logout</span>
+                            </button>
+                        </div>
+                    </motion.div>
+
                     {/* Header */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
