@@ -69,7 +69,7 @@ export async function POST(request: Request) {
       // Onrole roles
       "Supervisor", "Manager", "Assistant Manager", "Senior Associate", "Associate",
       // Offrole roles
-      "Painter", "Fitter", "Electrician", "Helper"
+      "Painter", "Fitter", "Electrician", "Helper", "Senior Operator", "Fitter-RSO"
     ];
 
     if (!data.role || !validRoles.includes(data.role)) {
@@ -116,7 +116,9 @@ export async function POST(request: Request) {
       "Electrician": "E",
       "Fitter": "F",
       "Painter": "P",
-      "Helper": "H"
+      "Helper": "H",
+      "Senior Operator": "SO",
+      "Fitter-RSO": "FR",
     };
     const roleCode = roleCodeMap[data.role] || "X";
 
