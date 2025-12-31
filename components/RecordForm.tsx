@@ -64,6 +64,12 @@ interface RecordFormProps {
   onSuccess: () => void;
 }
 
+const SHIFT_OPTIONS = [
+  { value: "Shift 1", label: "Shift 1", range: "08:00 AM - 04:30 PM IST" },
+  { value: "Shift 2", label: "Shift 2", range: "04:31 PM - 01:00 AM IST" },
+  { value: "Shift 3", label: "Shift 3", range: "01:01 AM - 07:59 AM IST" },
+];
+
 // Constants for auto-save
 const AUTO_SAVE_KEY = 'record_form_autosave';
 const AUTO_SAVE_DEBOUNCE_MS = 1000;
@@ -85,10 +91,30 @@ const getSessionId = () => {
   return sessionId;
 };
 
+const getCurrentISTShift = () => {
+  const istNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+  const minutes = istNow.getHours() * 60 + istNow.getMinutes();
+
+  const inRange = (start: number, end: number) =>
+    end < start ? minutes >= start || minutes <= end : minutes >= start && minutes <= end;
+
+  if (inRange(8 * 60, 16 * 60 + 30)) return SHIFT_OPTIONS[0].value;
+  if (inRange(16 * 60 + 31, 1 * 60)) return SHIFT_OPTIONS[1].value;
+  return SHIFT_OPTIONS[2].value;
+};
+
+const normalizeShiftValue = (shift?: string) => {
+  if (!shift) return SHIFT_OPTIONS[0].value;
+  const lower = shift.toLowerCase();
+  if (lower.includes("day")) return SHIFT_OPTIONS[0].value;
+  if (lower.includes("night")) return SHIFT_OPTIONS[1].value;
+  return shift;
+};
+
 export default function RecordForm({ existingRecord, onClose, onSuccess }: RecordFormProps) {
   const [formData, setFormData] = useState<RecordFormData>({
     dronaSupervisor: "",
-    shift: "Day Shift",
+    shift: SHIFT_OPTIONS[0].value,
     date: "",
     inTime: "",
     outTime: "",
@@ -181,7 +207,10 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
       }
 
       // Restore form data
-      setFormData(parsedData.formData);
+      setFormData({
+        ...parsedData.formData,
+        shift: normalizeShiftValue(parsedData.formData.shift),
+      });
       if (parsedData.dateValue) {
         setDateValue(dayjs(parsedData.dateValue));
       }
@@ -222,7 +251,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
     if (!restored && existingRecord) {
       setFormData({
         dronaSupervisor: existingRecord.dronaSupervisor || "",
-        shift: existingRecord.shift || "Day Shift",
+        shift: normalizeShiftValue(existingRecord.shift),
         date: existingRecord.date || "",
         inTime: existingRecord.inTime ? convertTo12Hour(existingRecord.inTime) : "",
         outTime: existingRecord.outTime ? convertTo12Hour(existingRecord.outTime) : "",
@@ -259,9 +288,13 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
         }
       }
     }
-  }, [existingRecord]);
+  }, [existingRecord, restoreFromLocalStorage]);
 
-  // Fetch employees for existing record
+  // Auto-set shift using current IST time when creating a fresh entry
+  useEffect(() => {
+    if (existingRecord || hasRestoredDataRef.current) return;
+    setFormData((prev) => ({ ...prev, shift: getCurrentISTShift() }));
+  }, [existingRecord]);
   useEffect(() => {
     const fetchEmployees = async () => {
       if (existingRecord?.id) {
@@ -640,15 +673,24 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                           onValueChange={(value) => handleSelectChange("shift", value)}
                           className="flex flex-col space-y-2"
                         >
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="Day Shift" id="day-shift" />
-                            <Label htmlFor="day-shift" className="text-sm font-normal cursor-pointer text-gray-700 dark:text-gray-300">Day Shift</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="Night Shift" id="night-shift" />
-                            <Label htmlFor="night-shift" className="text-sm font-normal cursor-pointer text-gray-700 dark:text-gray-300">Night Shift</Label>
-                          </div>
+                          {SHIFT_OPTIONS.map((option) => {
+                            const id = `shift-${option.value.toLowerCase().replace(/\s+/g, '-')}`;
+                            return (
+                              <div key={option.value} className="flex items-center space-x-3">
+                                <RadioGroupItem value={option.value} id={id} />
+                                <div className="flex flex-col">
+                                  <Label htmlFor={id} className="text-sm font-medium cursor-pointer text-gray-700 dark:text-gray-200">
+                                    {option.label}
+                                  </Label>
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">{option.range}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </RadioGroup>
+                        <FieldDescription className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          Auto-selected using current IST time; adjust if needed.
+                        </FieldDescription>
                       </Field>
 
                       <Field>
