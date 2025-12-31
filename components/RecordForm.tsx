@@ -7,29 +7,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { convertTo12Hour } from "@/lib/utils";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { TimePicker } from "@mui/x-date-pickers/TimePicker";
-import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import dayjs, { Dayjs } from "dayjs";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import {
-  Field,
   FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
-  FieldLegend,
-  FieldSeparator,
   FieldSet,
 } from "@/components/ui/field";
-import EmployeeSelector from "@/components/EmployeeSelector";
 import { HelpCircle } from "lucide-react";
 import type { ProductionRecord } from "@/types/record";
 
@@ -43,7 +29,6 @@ interface Employee {
 interface RecordFormData {
   dronaSupervisor: string;
   shift: string;
-  date: string;
   inTime: string;
   outTime: string;
   binNo: string;
@@ -111,11 +96,36 @@ const normalizeShiftValue = (shift?: string) => {
   return shift;
 };
 
+const buildDateTimeValue = (dateStr?: string | null, timeStr?: string | null): Dayjs | null => {
+  if (timeStr && timeStr.includes('T')) {
+    const parsed = dayjs(timeStr);
+    return parsed.isValid() ? parsed : null;
+  }
+
+  if (dateStr && timeStr) {
+    const combined = dayjs(`${dateStr}T${timeStr}`);
+    if (combined.isValid()) return combined;
+  }
+
+  if (timeStr) {
+    const [hours, minutes] = timeStr.split(':');
+    if (hours && minutes) {
+      return dayjs().hour(parseInt(hours, 10)).minute(parseInt(minutes, 10));
+    }
+  }
+
+  if (dateStr) {
+    const parsedDate = dayjs(dateStr);
+    return parsedDate.isValid() ? parsedDate : null;
+  }
+
+  return null;
+};
+
 export default function RecordForm({ existingRecord, onClose, onSuccess }: RecordFormProps) {
   const [formData, setFormData] = useState<RecordFormData>({
     dronaSupervisor: "",
     shift: SHIFT_OPTIONS[0].value,
-    date: "",
     inTime: "",
     outTime: "",
     binNo: "",
@@ -135,7 +145,6 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(true);
-  const [dateValue, setDateValue] = useState<Dayjs | null>(null);
   const [inTimeValue, setInTimeValue] = useState<Dayjs | null>(null);
   const [outTimeValue, setOutTimeValue] = useState<Dayjs | null>(null);
   const [selectedEmployees, setSelectedEmployees] = useState<Employee[]>([]);
@@ -160,7 +169,6 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
     try {
       const dataToSave = {
         formData,
-        dateValue: dateValue ? dateValue.toISOString() : null,
         inTimeValue: inTimeValue ? inTimeValue.toISOString() : null,
         outTimeValue: outTimeValue ? outTimeValue.toISOString() : null,
         selectedEmployees,
@@ -180,7 +188,13 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
       console.error('Failed to auto-save:', error);
       setAutoSaveStatus('idle');
     }
-  }, [formData, dateValue, inTimeValue, outTimeValue, selectedEmployees, existingRecord?.id]);
+  }, [formData, inTimeValue, outTimeValue, selectedEmployees, existingRecord?.id]);
+
+  // Auto-set type: default PTS, becomes PDI when Out DateTime is set (read-only to user)
+  useEffect(() => {
+    const nextType = outTimeValue ? "PDI" : "PTS";
+    setFormData((prev) => (prev.type === nextType ? prev : { ...prev, type: nextType }));
+  }, [outTimeValue]);
 
   // Restore from localStorage
   const restoreFromLocalStorage = useCallback(() => {
@@ -211,9 +225,6 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
         ...parsedData.formData,
         shift: normalizeShiftValue(parsedData.formData.shift),
       });
-      if (parsedData.dateValue) {
-        setDateValue(dayjs(parsedData.dateValue));
-      }
       if (parsedData.inTimeValue) {
         setInTimeValue(dayjs(parsedData.inTimeValue));
       }
@@ -252,7 +263,6 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
       setFormData({
         dronaSupervisor: existingRecord.dronaSupervisor || "",
         shift: normalizeShiftValue(existingRecord.shift),
-        date: existingRecord.date || "",
         inTime: existingRecord.inTime ? convertTo12Hour(existingRecord.inTime) : "",
         outTime: existingRecord.outTime ? convertTo12Hour(existingRecord.outTime) : "",
         binNo: existingRecord.binNo || "",
@@ -266,27 +276,11 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
         productionInchargeFromVBCL: existingRecord.productionInchargeFromVBCL || "",
         remarks: existingRecord.remarks || "",
       });
+      const existingIn = buildDateTimeValue(existingRecord.date, existingRecord.inTime);
+      const existingOut = buildDateTimeValue(existingRecord.date, existingRecord.outTime);
 
-      // Set DatePicker value from existing record
-      if (existingRecord.date) {
-        setDateValue(dayjs(existingRecord.date));
-      }
-
-      // Set TimePicker values from existing record
-      if (existingRecord.inTime) {
-        const time24 = existingRecord.inTime;
-        const [hours, minutes] = time24.split(':');
-        if (hours && minutes) {
-          setInTimeValue(dayjs().hour(parseInt(hours)).minute(parseInt(minutes)));
-        }
-      }
-      if (existingRecord.outTime) {
-        const time24 = existingRecord.outTime;
-        const [hours, minutes] = time24.split(':');
-        if (hours && minutes) {
-          setOutTimeValue(dayjs().hour(parseInt(hours)).minute(parseInt(minutes)));
-        }
-      }
+      if (existingIn) setInTimeValue(existingIn);
+      if (existingOut) setOutTimeValue(existingOut);
     }
   }, [existingRecord, restoreFromLocalStorage]);
 
@@ -347,7 +341,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
         clearTimeout(autoSaveTimeoutRef.current);
       }
     };
-  }, [formData, dateValue, inTimeValue, outTimeValue, selectedEmployees, saveToLocalStorage]);
+  }, [formData, inTimeValue, outTimeValue, selectedEmployees, saveToLocalStorage]);
 
   // Warn user about unsaved changes before leaving
   useEffect(() => {
@@ -372,21 +366,6 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
       [name]: type === "number" ? parseInt(value) || 0 : value,
     }));
     // Clear field error when user starts typing
-    if (fieldErrors[name]) {
-      setFieldErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors[name];
-        return newErrors;
-      });
-    }
-  };
-
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-    // Clear field error when user selects
     if (fieldErrors[name]) {
       setFieldErrors((prev) => {
         const newErrors = { ...prev };
@@ -428,12 +407,14 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
 
       const method = existingRecord ? "PATCH" : "POST";
 
+      const effectiveDate = inTimeValue || outTimeValue;
+
       // Convert Dayjs date and time values to format before sending
       const dataToSend = {
         ...formData,
-        date: dateValue ? dateValue.format('YYYY-MM-DD') : null,
-        inTime: inTimeValue ? inTimeValue.format('HH:mm') : null,
-        outTime: outTimeValue ? outTimeValue.format('HH:mm') : null,
+        date: effectiveDate ? effectiveDate.format('YYYY-MM-DD') : null,
+        inTime: inTimeValue ? inTimeValue.toISOString() : null,
+        outTime: outTimeValue ? outTimeValue.toISOString() : null,
         employeeIds: selectedEmployees.map(e => e.id),
         action: "save"
       };
@@ -469,12 +450,13 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
       let recordId = existingRecord?.id;
 
       if (!existingRecord) {
+        const effectiveDate = inTimeValue || outTimeValue;
         // Convert Dayjs date and time values to format before sending
         const dataToCreate = {
           ...formData,
-          date: dateValue ? dateValue.format('YYYY-MM-DD') : null,
-          inTime: inTimeValue ? inTimeValue.format('HH:mm') : null,
-          outTime: outTimeValue ? outTimeValue.format('HH:mm') : null,
+          date: effectiveDate ? effectiveDate.format('YYYY-MM-DD') : null,
+          inTime: inTimeValue ? inTimeValue.toISOString() : null,
+          outTime: outTimeValue ? outTimeValue.toISOString() : null,
           employeeIds: selectedEmployees.map(e => e.id),
         };
 
@@ -493,11 +475,12 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
       }
 
       // Then submit it - convert Dayjs date and time values to format
+      const effectiveDate = inTimeValue || outTimeValue;
       const dataToSubmit = {
         ...formData,
-        date: dateValue ? dateValue.format('YYYY-MM-DD') : null,
-        inTime: inTimeValue ? inTimeValue.format('HH:mm') : null,
-        outTime: outTimeValue ? outTimeValue.format('HH:mm') : null,
+        date: effectiveDate ? effectiveDate.format('YYYY-MM-DD') : null,
+        inTime: inTimeValue ? inTimeValue.toISOString() : null,
+        outTime: outTimeValue ? outTimeValue.toISOString() : null,
         employeeIds: selectedEmployees.map(e => e.id),
         action: "submit"
       };
@@ -665,72 +648,32 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                       )}
                     </Field>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                      <Field data-invalid={!!fieldErrors.shift}>
-                        <FieldLabel className="text-gray-700 dark:text-gray-300 font-medium mb-3">Shift</FieldLabel>
-                        <RadioGroup
-                          value={formData.shift}
-                          onValueChange={(value) => handleSelectChange("shift", value)}
-                          className="flex flex-col space-y-2"
-                        >
-                          {SHIFT_OPTIONS.map((option) => {
-                            const id = `shift-${option.value.toLowerCase().replace(/\s+/g, '-')}`;
-                            return (
-                              <div key={option.value} className="flex items-center space-x-3">
-                                <RadioGroupItem value={option.value} id={id} />
-                                <div className="flex flex-col">
-                                  <Label htmlFor={id} className="text-sm font-medium cursor-pointer text-gray-700 dark:text-gray-200">
-                                    {option.label}
-                                  </Label>
-                                  <span className="text-xs text-gray-500 dark:text-gray-400">{option.range}</span>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </RadioGroup>
-                        <FieldDescription className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          Auto-selected using current IST time; adjust if needed.
-                        </FieldDescription>
-                      </Field>
-
+                    <div className="grid grid-cols-1 gap-3 sm:gap-4">
                       <Field>
-                        <FieldLabel htmlFor="date" className="text-gray-700 dark:text-gray-300 font-medium">Date</FieldLabel>
-                        <div className="flex gap-2">
-                          <DatePicker
-                            value={dateValue}
-                            onChange={(newValue) => setDateValue(newValue)}
-                            slotProps={{
-                              textField: {
-                                size: 'small',
-                                fullWidth: true,
-                                sx: {
-                                  '& .MuiOutlinedInput-root': {
-                                    borderRadius: '0.5rem',
-                                    fontSize: '0.875rem',
-                                    backgroundColor: 'rgb(249 250 251)',
-                                  },
-                                },
-                              },
-                            }}
-                          />
-                          <Button
-                            type="button"
-                            onClick={() => setDateValue(dayjs())}
-                            variant="outline"
-                            size="sm"
-                            className="shrink-0 px-3 whitespace-nowrap border-[#DE1C1C]/30 text-[#DE1C1C] hover:bg-[#DE1C1C]/10"
-                          >
-                            Now
-                          </Button>
+                        <FieldLabel className="text-gray-700 dark:text-gray-300 font-medium mb-3">Shift (auto)</FieldLabel>
+                        <div className="flex flex-col gap-2">
+                          <div className="inline-flex items-center gap-2 w-fit px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                            <div className="flex flex-col">
+                              <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+                                {SHIFT_OPTIONS.find(opt => opt.value === formData.shift)?.label || formData.shift}
+                              </span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {SHIFT_OPTIONS.find(opt => opt.value === formData.shift)?.range}
+                              </span>
+                            </div>
+                          </div>
+                          <FieldDescription className="text-xs text-gray-500 dark:text-gray-400">
+                            Auto-selected using current IST time.
+                          </FieldDescription>
                         </div>
                       </Field>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <Field>
-                        <FieldLabel htmlFor="inTime" className="text-gray-700 dark:text-gray-300 font-medium">In Time</FieldLabel>
+                        <FieldLabel htmlFor="inTime" className="text-gray-700 dark:text-gray-300 font-medium">In Date &amp; Time</FieldLabel>
                         <div className="flex gap-2">
-                          <TimePicker
+                          <DateTimePicker
                             value={inTimeValue}
                             onChange={(newValue) => setInTimeValue(newValue)}
                             slotProps={{
@@ -760,9 +703,9 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                       </Field>
 
                       <Field>
-                        <FieldLabel htmlFor="outTime" className="text-gray-700 dark:text-gray-300 font-medium">Out Time</FieldLabel>
+                        <FieldLabel htmlFor="outTime" className="text-gray-700 dark:text-gray-300 font-medium">Out Date &amp; Time</FieldLabel>
                         <div className="flex gap-2">
-                          <TimePicker
+                          <DateTimePicker
                             value={outTimeValue}
                             onChange={(newValue) => setOutTimeValue(newValue)}
                             slotProps={{
@@ -846,21 +789,15 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                     </Field>
 
                     <Field>
-                      <FieldLabel className="text-gray-700 dark:text-gray-300 font-medium mb-3">Type</FieldLabel>
-                      <RadioGroup
-                        value={formData.type}
-                        onValueChange={(value) => handleSelectChange("type", value)}
-                        className="flex flex-col space-y-2"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="PTS" id="type-pts" />
-                          <Label htmlFor="type-pts" className="text-sm font-normal cursor-pointer text-gray-700 dark:text-gray-300">PTS</Label>
+                      <FieldLabel className="text-gray-700 dark:text-gray-300 font-medium mb-3">Type (auto)</FieldLabel>
+                      <div className="flex flex-col gap-2">
+                        <div className="inline-flex items-center gap-2 w-fit px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm font-semibold text-gray-800 dark:text-gray-100">
+                          <span className="uppercase tracking-wide">{formData.type}</span>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="PDI" id="type-pdi" />
-                          <Label htmlFor="type-pdi" className="text-sm font-normal cursor-pointer text-gray-700 dark:text-gray-300">PDI</Label>
-                        </div>
-                      </RadioGroup>
+                        <FieldDescription className="text-xs text-gray-500 dark:text-gray-400">
+                          Defaults to PTS; switches to PDI automatically when an Out Date &amp; Time is set.
+                        </FieldDescription>
+                      </div>
                     </Field>
 
                     <Field>

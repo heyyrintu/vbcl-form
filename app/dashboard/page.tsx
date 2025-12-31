@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { formatDateTime, convertTo12Hour } from "@/lib/utils";
+import { formatDateTime, formatDateTimeOrTime } from "@/lib/utils";
 import AppSidebar from "@/components/AppSidebar";
 import AppHeader from "@/components/AppHeader";
 import { BGPattern } from "@/components/ui/bg-pattern";
@@ -266,8 +266,8 @@ export default function Dashboard() {
         "Supervisor": record.dronaSupervisor,
         "Shift": record.shift,
         "Date": record.date ? new Date(record.date).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "",
-        "In Time": record.inTime ? convertTo12Hour(record.inTime) : "",
-        "Out Time": record.outTime ? convertTo12Hour(record.outTime) : "",
+        "In DateTime": record.inTime ? formatDateTimeOrTime(record.inTime) : "",
+        "Out DateTime": record.outTime ? formatDateTimeOrTime(record.outTime) : "",
         "Bin No": record.binNo,
         "Model No": record.modelNo,
         "Chassis No": record.chassisNo,
@@ -753,10 +753,10 @@ export default function Dashboard() {
                         Date
                       </th>
                       <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        In Time
+                        In DateTime
                       </th>
                       <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Out Time
+                        Out DateTime
                       </th>
                       <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Bin No
@@ -841,10 +841,10 @@ export default function Dashboard() {
                             {record.date ? new Date(record.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : "-"}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                            {record.inTime ? convertTo12Hour(record.inTime) : "-"}
+                            {record.inTime ? formatDateTimeOrTime(record.inTime) : "-"}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                            {record.outTime ? convertTo12Hour(record.outTime) : "-"}
+                            {record.outTime ? formatDateTimeOrTime(record.outTime) : "-"}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                             {record.binNo}

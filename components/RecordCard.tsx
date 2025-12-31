@@ -1,6 +1,6 @@
 "use client";
 
-import { convertTo12Hour } from "@/lib/utils";
+import { formatDateTimeOrTime } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { ProductionRecord } from "@/types/record";
 import {
@@ -103,11 +103,11 @@ export default function RecordCard({ record, onEdit, onSubmit, onCancel, isCompl
         {(record.inTime || record.outTime) && (
           <div className="flex flex-col gap-1">
             <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-              <Clock className="w-3 h-3" /> Time
+              <Clock className="w-3 h-3" /> In/Out
             </span>
             <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-              {record.inTime ? convertTo12Hour(record.inTime) : '--'}
-              {record.outTime ? ` - ${convertTo12Hour(record.outTime)}` : ''}
+              {record.inTime ? formatDateTimeOrTime(record.inTime) : '--'}
+              {record.outTime ? ` - ${formatDateTimeOrTime(record.outTime)}` : ''}
             </span>
           </div>
         )}

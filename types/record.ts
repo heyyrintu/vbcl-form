@@ -16,8 +16,8 @@ export interface ProductionRecord {
   dronaSupervisor: string;
   shift: string;
   date: string | null;
-  inTime: string | null;
-  outTime: string | null;
+  inTime: string | null; // ISO datetime string or legacy HH:mm
+  outTime: string | null; // ISO datetime string or legacy HH:mm
   binNo: string;
   modelNo: string;
   chassisNo: string;

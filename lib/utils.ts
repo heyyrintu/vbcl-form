@@ -79,3 +79,31 @@ export function convertTo24Hour(time12: string): string {
   
   return `${hour24.toString().padStart(2, '0')}:${minutes}`;
 }
+
+// Format time or datetime strings into a readable short string.
+// Accepts ISO datetime strings or "HH:mm" values and falls back to the raw input when parsing fails.
+export function formatDateTimeOrTime(value: string | null | undefined): string {
+  if (!value) return '';
+
+  const trimmed = value.trim();
+
+  // Handle ISO-like datetime strings
+  if (trimmed.includes('T')) {
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    }
+  }
+
+  // Handle plain 24-hour time values
+  if (/^\d{1,2}:\d{2}/.test(trimmed)) {
+    return convertTo12Hour(trimmed);
+  }
+
+  return trimmed;
+}
