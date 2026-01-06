@@ -6,6 +6,10 @@ import { syncRecordToSheet } from "@/lib/googleSheets";
 import { assignEmployeesToRecord } from "@/lib/employeeUtils";
 import { generateSerialNumber } from "@/lib/serialNumberUtils";
 
+// In-memory cache for idempotency keys
+const idempotencyCache = new Map<string, { response: any; timestamp: number }>();
+const IDEMPOTENCY_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
 // GET - Fetch single record by ID
 export async function GET(
   request: Request,
@@ -63,6 +67,18 @@ export async function PATCH(
     }
 
     const { id } = await context.params;
+    
+    // Check for idempotency key
+    const idempotencyKey = request.headers.get("Idempotency-Key");
+    if (idempotencyKey) {
+      const cacheKey = `${id}:${idempotencyKey}`;
+      const cached = idempotencyCache.get(cacheKey);
+      if (cached) {
+        console.log(`Duplicate PATCH request detected with key: ${idempotencyKey}`);
+        return NextResponse.json(cached.response);
+      }
+    }
+    
     const data = await request.json();
 
     // Fetch the current record
@@ -208,6 +224,15 @@ export async function PATCH(
           updatedRecord.date,
           updatedRecord.shift
         );
+      }
+
+      // Cache the response for idempotency
+      if (idempotencyKey) {
+        const cacheKey = `${id}:${idempotencyKey}`;
+        idempotencyCache.set(cacheKey, {
+          response: updatedRecord,
+          timestamp: Date.now(),
+        });
       }
 
       return NextResponse.json(updatedRecord);

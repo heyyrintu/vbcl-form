@@ -4,6 +4,8 @@ import "./globals.css";
 
 import { Providers } from "@/components/Providers";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
+import { NetworkStatusIndicator } from "@/components/NetworkStatusIndicator";
+import { QueueInitializer } from "@/components/QueueInitializer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -74,6 +76,8 @@ export default function RootLayout({
       >
         <Providers>
           <ServiceWorkerRegistration />
+          <QueueInitializer />
+          <NetworkStatusIndicator />
           {children}
         </Providers>
       </body>

@@ -17,8 +17,11 @@ import {
   FieldLabel,
   FieldSet,
 } from "@/components/ui/field";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, WifiOff } from "lucide-react";
 import type { ProductionRecord } from "@/types/record";
+import { submitWithOfflineQueue, patchWithOfflineQueue } from "@/lib/offlineQueue/submitWithQueue";
+import { notifyQueueChanged } from "@/lib/hooks/useQueueStatus";
+import { useNetworkStatus } from "@/lib/hooks/useNetworkStatus";
 
 interface Employee {
   id: string;
@@ -143,12 +146,16 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(!existingRecord);
   const [inTimeValue, setInTimeValue] = useState<Dayjs | null>(null);
   const [outTimeValue, setOutTimeValue] = useState<Dayjs | null>(null);
   const [selectedEmployees, setSelectedEmployees] = useState<Employee[]>([]);
+  
+  // Network status
+  const isOnline = useNetworkStatus();
 
   // Auto-save state
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -443,6 +450,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
 
   const handleSubmit = async () => {
     setError("");
+    setSuccessMessage("");
     if (!validateForm()) return;
 
     setLoading(true);
@@ -460,18 +468,26 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
           employeeIds: selectedEmployees.map(e => e.id),
         };
 
-        const createResponse = await fetch("/api/records", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(dataToCreate),
-        });
-
-        if (!createResponse.ok) {
-          throw new Error("Failed to create record");
+        const createResult = await submitWithOfflineQueue("/api/records", dataToCreate);
+        
+        if (!createResult.success) {
+          if (createResult.queued) {
+            setSuccessMessage("📱 Offline: Record saved and will be submitted automatically when online");
+            notifyQueueChanged();
+            // Clear auto-save data
+            clearAutoSaveData();
+            // Close form after showing message
+            setTimeout(() => {
+              onSuccess();
+              onClose();
+            }, 2000);
+            return;
+          } else {
+            throw new Error(createResult.error || "Failed to create record");
+          }
         }
 
-        const newRecord = await createResponse.json();
-        recordId = newRecord.id;
+        recordId = createResult.data.id;
       } else {
         // Update existing record first with edited data
         const effectiveDate = inTimeValue || outTimeValue;
@@ -484,14 +500,21 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
           action: "save"
         };
 
-        const updateResponse = await fetch(`/api/records/${recordId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(dataToUpdate),
-        });
-
-        if (!updateResponse.ok) {
-          throw new Error("Failed to update record");
+        const updateResult = await patchWithOfflineQueue(`/api/records/${recordId}`, dataToUpdate);
+        
+        if (!updateResult.success) {
+          if (updateResult.queued) {
+            setSuccessMessage("📱 Offline: Changes saved and will be submitted automatically when online");
+            notifyQueueChanged();
+            clearAutoSaveData();
+            setTimeout(() => {
+              onSuccess();
+              onClose();
+            }, 2000);
+            return;
+          } else {
+            throw new Error(updateResult.error || "Failed to update record");
+          }
         }
       }
 
@@ -506,17 +529,24 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
         action: "submit"
       };
 
-      const response = await fetch(`/api/records/${recordId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(dataToSubmit),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to submit record");
+      const submitResult = await patchWithOfflineQueue(`/api/records/${recordId}`, dataToSubmit);
+      
+      if (!submitResult.success) {
+        if (submitResult.queued) {
+          setSuccessMessage("📱 Offline: Submission queued and will be sent automatically when online");
+          notifyQueueChanged();
+          clearAutoSaveData();
+          setTimeout(() => {
+            onSuccess();
+            onClose();
+          }, 2000);
+          return;
+        } else {
+          throw new Error(submitResult.error || "Failed to submit record");
+        }
       }
 
-      const result = await response.json();
+      const result = submitResult.data;
 
       // Clear auto-save data on successful submission
       clearAutoSaveData();
@@ -529,11 +559,14 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
           onClose();
         }, 3000);
       } else {
-        onSuccess();
-        onClose();
+        setSuccessMessage("✓ Record submitted successfully");
+        setTimeout(() => {
+          onSuccess();
+          onClose();
+        }, 1000);
       }
-    } catch {
-      setError("Failed to submit record. Please try again.");
+    } catch (err: any) {
+      setError(err.message || "Failed to submit record. Please try again.");
     } finally {
       setLoading(false);
       setShowSubmitConfirm(false);
@@ -630,6 +663,19 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto pb-32 md:pb-0 bg-gradient-to-b from-gray-50/50 via-white to-gray-50/30 dark:from-gray-900/50 dark:via-gray-950 dark:to-gray-900/30">
             <div className="p-4 sm:p-6">
+              {/* Network Status Warning */}
+              {!isOnline && (
+                <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <WifiOff className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                    <p className="text-sm text-yellow-800 dark:text-yellow-300 font-medium">
+                      You are offline. Submissions will be queued and sent automatically when connection returns.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Error Message */}
               {error && (
                 <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl shadow-sm">
                   <div className="flex items-center gap-2">
@@ -637,6 +683,18 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
                     <p className="text-sm text-red-800 dark:text-red-300 font-medium">{error}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Success Message */}
+              {successMessage && (
+                <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <p className="text-sm text-green-800 dark:text-green-300 font-medium">{successMessage}</p>
                   </div>
                 </div>
               )}
