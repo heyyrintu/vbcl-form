@@ -447,12 +447,11 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
 
     setLoading(true);
     try {
-      // First save the record if it's new
       let recordId = existingRecord?.id;
 
       if (!existingRecord) {
+        // Create new record first
         const effectiveDate = inTimeValue || outTimeValue;
-        // Convert Dayjs date and time values to format before sending
         const dataToCreate = {
           ...formData,
           date: effectiveDate ? effectiveDate.format('YYYY-MM-DD') : null,
@@ -473,9 +472,30 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
 
         const newRecord = await createResponse.json();
         recordId = newRecord.id;
+      } else {
+        // Update existing record first with edited data
+        const effectiveDate = inTimeValue || outTimeValue;
+        const dataToUpdate = {
+          ...formData,
+          date: effectiveDate ? effectiveDate.format('YYYY-MM-DD') : null,
+          inTime: inTimeValue ? inTimeValue.toISOString() : null,
+          outTime: outTimeValue ? outTimeValue.toISOString() : null,
+          employeeIds: selectedEmployees.map(e => e.id),
+          action: "save"
+        };
+
+        const updateResponse = await fetch(`/api/records/${recordId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(dataToUpdate),
+        });
+
+        if (!updateResponse.ok) {
+          throw new Error("Failed to update record");
+        }
       }
 
-      // Then submit it - convert Dayjs date and time values to format
+      // Then submit it
       const effectiveDate = inTimeValue || outTimeValue;
       const dataToSubmit = {
         ...formData,
@@ -991,10 +1011,10 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
       {/* Submit Confirmation Modal */}
       {
         showSubmitConfirm && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-[60]">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-4 sm:p-6 mx-2 border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirm Submit</h3>
-              <p className="text-gray-600 mb-4">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-[130]">
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-md w-full p-4 sm:p-6 mx-2 border border-gray-200 dark:border-gray-800">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Confirm Submit</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
                 Are you sure you want to submit this entry? Once submitted, it will be marked as completed and synced to Google Sheets.
               </p>
               <div className="flex flex-col sm:flex-row gap-3">

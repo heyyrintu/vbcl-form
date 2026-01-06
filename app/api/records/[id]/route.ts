@@ -94,6 +94,18 @@ export async function PATCH(
 
       const newCount = (maxRecord?.srNoVehicleCount || 0) + 1;
 
+      // Calculate hours (outTime - inTime)
+      let hours: number | null = null;
+      const inTime = data.inTime !== undefined ? data.inTime : existingRecord.inTime;
+      const outTime = data.outTime !== undefined ? data.outTime : existingRecord.outTime;
+      
+      if (inTime && outTime) {
+        const inDate = new Date(inTime);
+        const outDate = new Date(outTime);
+        const diffMs = outDate.getTime() - inDate.getTime();
+        hours = diffMs / (1000 * 60 * 60); // Convert milliseconds to hours
+      }
+
       // Update to completed
       const updatedRecord = await prisma.record.update({
         where: { id },
@@ -101,6 +113,7 @@ export async function PATCH(
           status: "COMPLETED",
           srNoVehicleCount: newCount,
           completedAt: new Date(),
+          hours,
           // Update any other fields from the request
           dronaSupervisor: data.dronaSupervisor || existingRecord.dronaSupervisor,
           shift: data.shift || existingRecord.shift,

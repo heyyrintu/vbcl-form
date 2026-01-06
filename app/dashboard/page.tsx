@@ -269,6 +269,7 @@ export default function Dashboard() {
         "Date": record.date ? new Date(record.date).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "",
         "In DateTime": record.inTime ? formatDateTimeOrTime(record.inTime) : "",
         "Out DateTime": record.outTime ? formatDateTimeOrTime(record.outTime) : "",
+        "Hours": record.hours ? record.hours.toFixed(2) : "N/A",
         "Bin No": record.binNo,
         "Model No": record.modelNo,
         "Chassis No": record.chassisNo,
@@ -769,6 +770,9 @@ export default function Dashboard() {
                         Out DateTime
                       </th>
                       <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Hours
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Bin No
                       </th>
                       <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -858,6 +862,9 @@ export default function Dashboard() {
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             {record.outTime ? formatDateTimeOrTime(record.outTime) : "-"}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-green-600 dark:text-green-400">
+                            {record.hours !== null && record.hours !== undefined ? `${record.hours.toFixed(2)} hrs` : "N/A"}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                             {record.binNo}

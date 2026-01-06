@@ -51,6 +51,7 @@ model Record {
   remarks                              String?
   completedAt                          DateTime? // For monthly counter logic
   deletedAt                            DateTime? // For soft delete (recycle bin)
+  hours                                Float?    // Total hours (outTime - inTime) calculated on submit
   
   // Relations
   employeeAssignments                  EmployeeAssignment[]

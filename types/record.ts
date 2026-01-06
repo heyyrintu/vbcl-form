@@ -31,6 +31,7 @@ export interface ProductionRecord {
   remarks?: string | null;
   employeeAssignments?: EmployeeAssignment[];
   srNoVehicleCount?: number | null;
+  hours?: number | null;
   updatedAt: string;
   createdAt: string;
 }

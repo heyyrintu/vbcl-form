@@ -134,7 +134,16 @@ export default function RecordCard({ record, onEdit, onSubmit, onCancel, onDelet
             </span>
           </div>
         )}
-
+        {isCompleted && record.hours !== null && record.hours !== undefined && (
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+              <Clock className="w-3 h-3" /> Hours
+            </span>
+            <span className="text-sm font-bold text-green-600 dark:text-green-400">
+              {record.hours.toFixed(2)} hrs
+            </span>
+          </div>
+        )}
         <div className="flex flex-col gap-1">
           <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
             <MapPin className="w-3 h-3" /> Bin No
