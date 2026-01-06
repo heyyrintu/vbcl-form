@@ -224,23 +224,28 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
 
     if (loading) {
         return (
-            <div className="flex flex-col md:flex-row w-full h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
-                <AppSidebar />
-                <main className="flex-1 flex items-center justify-center">
+            <div className="flex flex-col w-full h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
+                <AppHeader />
+                <div className="flex flex-1 overflow-hidden">
+                    <AppSidebar />
+                    <main className="flex-1 flex items-center justify-center">
                     <div className="text-center">
                         <Loader2 className="w-8 h-8 animate-spin text-[#E01E1F] mx-auto" />
                         <p className="mt-4 text-gray-600 dark:text-gray-400">Loading employee...</p>
                     </div>
                 </main>
+                </div>
             </div>
         );
     }
 
     if (error && !employee) {
         return (
-            <div className="flex flex-col md:flex-row w-full h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
-                <AppSidebar />
-                <main className="flex-1 flex items-center justify-center">
+            <div className="flex flex-col w-full h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
+                <AppHeader />
+                <div className="flex flex-1 overflow-hidden">
+                    <AppSidebar />
+                    <main className="flex-1 flex items-center justify-center">
                     <div className="text-center">
                         <AlertCircle className="w-12 h-12 text-red-500 mx-auto" />
                         <p className="mt-4 text-gray-900 dark:text-white font-bold text-lg">{error}</p>
@@ -252,20 +257,22 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                         </button>
                     </div>
                 </main>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="flex flex-col md:flex-row w-full h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
-            <AppSidebar />
+        <div className="flex flex-col w-full h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
+            <AppHeader />
+            
+            <div className="flex flex-1 overflow-hidden">
+                <AppSidebar />
 
-            <main className="flex-1 overflow-y-auto relative">
-                <AppHeader />
+                <main className="flex-1 overflow-y-auto relative">
                 <BGPattern variant="grid" mask="fade-edges" size={24} fill="rgba(222, 28, 28, 0.1)" className="absolute inset-0 pointer-events-none dark:opacity-30" />
 
-                <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
-                    {/* Breadcrumb Navigation */}
+                <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">{/* Breadcrumb Navigation */}
                     <nav className="flex items-center gap-2 text-sm mb-4" aria-label="Breadcrumb">
                         {fromPage === 'attendance' ? (
                             <>
@@ -574,6 +581,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                     </div>
                 </div>
             )}
+          </div>
         </div>
     );
 }

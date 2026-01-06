@@ -299,14 +299,16 @@ function EmployeeAttendanceContent() {
   return (
     <div
       className={cn(
-        "flex flex-col md:flex-row w-full h-screen overflow-hidden bg-gray-50 dark:bg-gray-950 transition-colors duration-300"
+        "flex flex-col w-full h-screen overflow-hidden bg-gray-50 dark:bg-gray-950 transition-colors duration-300"
       )}
     >
-      <AppSidebar />
+      <AppHeader />
+      
+      <div className="flex flex-1 overflow-hidden">
+        <AppSidebar />
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto relative z-10">
-        <AppHeader />
+        {/* Main Content */}
+        <main className="flex-1 overflow-y-auto relative z-10">
         <BGPattern
           variant="grid"
           mask="fade-edges"
@@ -652,5 +654,6 @@ function EmployeeAttendanceContent() {
         </div>
       </main>
     </div>
+  </div>
   );
 }

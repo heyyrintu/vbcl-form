@@ -262,10 +262,12 @@ export default function SettingsPage() {
     }
 
     return (
-        <div className={cn("flex flex-col md:flex-row w-full h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-900 transition-colors duration-300")}>
-            <AppSidebar />
-            <main className="flex-1 overflow-y-auto relative z-10">
-                <AppHeader />
+        <div className={cn("flex flex-col w-full h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-900 transition-colors duration-300")}>
+            <AppHeader />
+            
+            <div className="flex flex-1 overflow-hidden">
+                <AppSidebar />
+                <main className="flex-1 overflow-y-auto relative z-10">
                 {/* 
               Fixed decorative background
               - Positioned using CSS background-position for precise alignment
@@ -627,6 +629,7 @@ export default function SettingsPage() {
                     </div>
                 </div>
             </main>
+            </div>
         </div>
     );
 }

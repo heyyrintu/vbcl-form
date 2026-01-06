@@ -13,6 +13,7 @@ export interface EmployeeAssignment {
 export interface ProductionRecord {
   id: string;
   status: "PENDING" | "COMPLETED";
+  serialNo?: string | null;
   dronaSupervisor: string;
   shift: string;
   date: string | null;

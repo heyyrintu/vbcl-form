@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { assignEmployeesToRecord } from "@/lib/employeeUtils";
+import { generateSerialNumber } from "@/lib/serialNumberUtils";
 
 // GET - Fetch all records (with optional status filter)
 export async function GET(request: Request) {
@@ -14,7 +15,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
 
-    const where = status ? { status } : {};
+    const where = status ? { status, deletedAt: null } : { deletedAt: null };
 
     const records = await prisma.record.findMany({
       where,
@@ -66,9 +67,16 @@ export async function POST(request: Request) {
       );
     }
 
+    // Generate serial number if date is provided
+    let serialNo: string | null = null;
+    if (data.date) {
+      serialNo = await generateSerialNumber(data.date);
+    }
+
     const record = await prisma.record.create({
       data: {
         status: "PENDING",
+        serialNo,
         dronaSupervisor: data.dronaSupervisor,
         shift: data.shift,
         date: data.date || null,

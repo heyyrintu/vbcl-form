@@ -262,6 +262,7 @@ export default function Dashboard() {
 
       return {
         "Vehicle #": record.srNoVehicleCount || "",
+        "Serial No": record.serialNo || "",
         "Status": record.status,
         "Supervisor": record.dronaSupervisor,
         "Shift": record.shift,
@@ -312,12 +313,14 @@ export default function Dashboard() {
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <div className={cn("flex flex-col md:flex-row w-full h-screen overflow-hidden bg-gray-50 dark:bg-gray-950 transition-colors duration-300")}>
-        <AppSidebar />
+      <div className={cn("flex flex-col w-full h-screen overflow-hidden bg-gray-50 dark:bg-gray-950 transition-colors duration-300")}>
+        <AppHeader />
+        
+        <div className="flex flex-1 overflow-hidden">
+          <AppSidebar />
 
-        {/* Main Content */}
-        <main className="flex-1 overflow-y-auto relative z-10">
-          <AppHeader />
+          {/* Main Content */}
+          <main className="flex-1 overflow-y-auto relative z-10">
           {/* Subtle Grid Pattern Overlay */}
           <BGPattern variant="grid" mask="fade-edges" size={24} fill="rgba(222, 28, 28, 0.1)" className="absolute inset-0 pointer-events-none dark:opacity-30" />
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 relative">
@@ -699,8 +702,12 @@ export default function Dashboard() {
                         <span className="font-medium text-gray-900 dark:text-gray-100">{record.date ? new Date(record.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : "-"}</span>
                       </div>
                       <div>
-                        <span className="text-xs text-gray-500 block">Chassis No</span>
-                        <span className="font-medium text-gray-900 dark:text-gray-100 truncate">{record.chassisNo}</span>
+                        <span className="text-xs text-gray-500 block">Serial No</span>
+                        <span className="font-semibold text-[#DE1C1C] dark:text-[#FEA519] truncate">{record.serialNo || "-"}</span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-xs text-gray-500 block">Model • Chassis</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-100 truncate">{record.modelNo} • {record.chassisNo}</span>
                       </div>
                     </div>
 
@@ -739,6 +746,9 @@ export default function Dashboard() {
                             <span>{sortOrder === "asc" ? "↑" : "↓"}</span>
                           )}
                         </div>
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Serial No
                       </th>
                       <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
@@ -820,6 +830,9 @@ export default function Dashboard() {
                             ) : (
                               <span className="text-gray-400">-</span>
                             )}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-[#DE1C1C] dark:text-[#FEA519]">
+                            {record.serialNo || "-"}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <span
@@ -932,6 +945,7 @@ export default function Dashboard() {
             )}
           </div>
         </main>
+        </div>
       </div>
     </LocalizationProvider>
   );

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import RecordForm from "@/components/RecordForm";
 import RecordList from "@/components/RecordList";
 import AppSidebar from "@/components/AppSidebar";
@@ -9,21 +9,27 @@ import AppHeader from "@/components/AppHeader";
 import { BGPattern } from "@/components/ui/bg-pattern";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Plus, LayoutDashboard, CheckCircle2, Clock, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { Plus, LayoutDashboard, CheckCircle2, Clock, ChevronDown, ChevronUp, Loader2, Trash2, RotateCcw } from "lucide-react";
 import type { ProductionRecord } from "@/types/record";
 import { getSession } from "next-auth/react";
 
-export default function AllEntriesPage() {
+function AllEntriesContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [records, setRecords] = useState<ProductionRecord[]>([]);
+  const [deletedRecords, setDeletedRecords] = useState<ProductionRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState<ProductionRecord | null>(null);
-  const [activeTab, setActiveTab] = useState<"pending" | "completed">("pending");
+  const [activeTab, setActiveTab] = useState<"pending" | "completed" | "deleted">("pending");
   const [showCancelConfirm, setShowCancelConfirm] = useState<string | null>(null);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState<string | null>(null);
+  const [showPermanentDeleteConfirm, setShowPermanentDeleteConfirm] = useState<string | null>(null);
   const [showAllCompleted, setShowAllCompleted] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const [authState, setAuthState] = useState<"checking" | "authenticated" | "unauthenticated">("checking");
 
@@ -36,6 +42,7 @@ export default function AllEntriesPage() {
         const session = await getSession();
         if (mounted && session) {
           setAuthState("authenticated");
+          setIsAdmin(session.user?.role === "ADMIN");
           // User is authenticated, fetch records
           fetchRecords();
         } else if (mounted) {
@@ -66,6 +73,27 @@ export default function AllEntriesPage() {
       if (response.ok) {
         const data: ProductionRecord[] = await response.json();
         setRecords(data);
+        
+        // Check if we need to open edit form from query params
+        const editId = searchParams?.get("edit");
+        if (editId && data.length > 0) {
+          const recordToEdit = data.find((r) => r.id === editId);
+          if (recordToEdit) {
+            setEditingRecord(recordToEdit);
+            setShowForm(true);
+            // Clear the query param
+            router.replace("/all-entries");
+          }
+        }
+      }
+      
+      // Fetch deleted records if admin
+      if (isAdmin) {
+        const deletedResponse = await fetch("/api/records/recycle-bin");
+        if (deletedResponse.ok) {
+          const deletedData: ProductionRecord[] = await deletedResponse.json();
+          setDeletedRecords(deletedData);
+        }
       }
     } catch (error) {
       console.error("Failed to fetch records:", error);
@@ -136,6 +164,60 @@ export default function AllEntriesPage() {
     fetchRecords();
   };
 
+  const handleDeleteRecord = async (recordId: string) => {
+    try {
+      const response = await fetch(`/api/records/${recordId}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        await fetchRecords();
+        setShowDeleteConfirm(null);
+      } else {
+        throw new Error("Failed to delete record");
+      }
+    } catch (error) {
+      console.error("Failed to delete record:", error);
+      alert("Failed to delete record. Please try again.");
+    }
+  };
+
+  const handleRestoreRecord = async (recordId: string) => {
+    try {
+      const response = await fetch(`/api/records/recycle-bin/${recordId}`, {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        await fetchRecords();
+        setShowRestoreConfirm(null);
+      } else {
+        throw new Error("Failed to restore record");
+      }
+    } catch (error) {
+      console.error("Failed to restore record:", error);
+      alert("Failed to restore record. Please try again.");
+    }
+  };
+
+  const handlePermanentDelete = async (recordId: string) => {
+    try {
+      const response = await fetch(`/api/records/recycle-bin/${recordId}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        await fetchRecords();
+        setShowPermanentDeleteConfirm(null);
+      } else {
+        throw new Error("Failed to permanently delete record");
+      }
+    } catch (error) {
+      console.error("Failed to permanently delete record:", error);
+      alert("Failed to permanently delete record. Please try again.");
+    }
+  };
+
   const handleShowMore = () => {
     setIsLoadingMore(true);
     // Simulate network request/rendering delay for smooth UX
@@ -187,12 +269,14 @@ export default function AllEntriesPage() {
   }
 
   return (
-    <div className={cn("flex flex-col md:flex-row w-full h-screen overflow-hidden bg-gray-50 dark:bg-gray-950 transition-colors duration-300")}>
-      <AppSidebar />
+    <div className={cn("flex flex-col w-full h-screen overflow-hidden bg-gray-50 dark:bg-gray-950 transition-colors duration-300")}>
+      <AppHeader />
+      
+      <div className="flex flex-1 overflow-hidden">
+        <AppSidebar />
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto relative z-10">
-        <AppHeader />
+        {/* Main Content */}
+        <main className="flex-1 overflow-y-auto relative z-10">
         {/* Subtle Grid Pattern Overlay */}
         <BGPattern variant="grid" mask="fade-edges" size={24} fill="rgba(222, 28, 28, 0.1)" className="absolute inset-0 pointer-events-none dark:opacity-30" />
 
@@ -240,6 +324,26 @@ export default function AllEntriesPage() {
                     <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-t-full" />
                   )}
                 </button>
+                {isAdmin && (
+                  <button
+                    onClick={() => setActiveTab("deleted")}
+                    className={`relative pb-4 px-2 font-medium text-sm transition-all duration-300 flex items-center gap-2 whitespace-nowrap ${activeTab === "deleted"
+                      ? "text-primary"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                      }`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Recycle Bin
+                    {deletedRecords.length > 0 && (
+                      <span className="ml-1 py-0.5 px-2 rounded-full text-xs bg-red-500/20 text-red-600 dark:text-red-400 font-bold">
+                        {deletedRecords.length}
+                      </span>
+                    )}
+                    {activeTab === "deleted" && (
+                      <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-t-full" />
+                    )}
+                  </button>
+                )}
               </div>
               
               <Button
@@ -272,13 +376,67 @@ export default function AllEntriesPage() {
                 isCompleted={false}
                 onEdit={handleEdit}
                 onSubmit={(record) => setShowSubmitConfirm(record.id)}
+                onDelete={(record) => setShowDeleteConfirm(record.id)}
+                isAdmin={isAdmin}
               />
+            ) : activeTab === "deleted" ? (
+              <div className="space-y-4">
+                {deletedRecords.length === 0 ? (
+                  <div className="text-center py-12 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md rounded-xl shadow-sm border border-white/20 dark:border-gray-700/50">
+                    <Trash2 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600 dark:text-gray-400">Recycle bin is empty</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-4">
+                      <p className="text-sm text-amber-800 dark:text-amber-200">
+                        📝 Items in recycle bin will be permanently deleted after 7 days
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+                      {deletedRecords.map((record) => (
+                        <div key={record.id} className="group relative bg-white/80 dark:bg-gray-900/80 backdrop-blur-md rounded-xl shadow-sm border border-white/20 dark:border-gray-700/50 p-4 transition-all duration-300">
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-semibold text-gray-900 dark:text-gray-100">{record.serialNo || "No Serial"}</p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">{record.modelNo} • {record.chassisNo}</p>
+                              </div>
+                              <span className="px-2 py-1 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs rounded-full">
+                                Deleted
+                              </span>
+                            </div>
+                            <div className="flex gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
+                              <button
+                                onClick={() => setShowRestoreConfirm(record.id)}
+                                className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors text-sm font-medium"
+                              >
+                                <RotateCcw className="w-4 h-4" />
+                                Restore
+                              </button>
+                              <button
+                                onClick={() => setShowPermanentDeleteConfirm(record.id)}
+                                className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors text-sm font-medium"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             ) : (
               <>
                 <RecordList
                   records={displayedCompletedRecords}
                   isCompleted={true}
                   onCancel={(record) => setShowCancelConfirm(record.id)}
+                  onDelete={(record) => setShowDeleteConfirm(record.id)}
+                  isAdmin={isAdmin}
                 />
                 {!showAllCompleted && otherDaysRecords.length > 0 && (
                   <div className="mt-12 flex flex-col items-center justify-center pb-8">
@@ -328,7 +486,8 @@ export default function AllEntriesPage() {
             )}
           </div>
         </div>
-      </main>
+        </main>
+        </div>
 
       {/* Form Modal */}
       {showForm && (
@@ -390,6 +549,99 @@ export default function AllEntriesPage() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-md w-full p-6 border border-red-200 dark:border-red-800">
+            <h3 className="text-lg font-bold text-red-600 dark:text-red-400 mb-2">Move to Recycle Bin</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Are you sure you want to move this entry to recycle bin? It will be automatically deleted after 7 days.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => showDeleteConfirm && handleDeleteRecord(showDeleteConfirm)}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-semibold"
+              >
+                Yes, Move to Bin
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Restore Confirmation Modal */}
+      {showRestoreConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-md w-full p-6 border border-green-200 dark:border-green-800">
+            <h3 className="text-lg font-bold text-green-600 dark:text-green-400 mb-2">Restore Entry</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Are you sure you want to restore this entry? It will be moved back to its original status.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowRestoreConfirm(null)}
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => showRestoreConfirm && handleRestoreRecord(showRestoreConfirm)}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-semibold"
+              >
+                Yes, Restore
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Permanent Delete Confirmation Modal */}
+      {showPermanentDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-md w-full p-6 border border-red-200 dark:border-red-800">
+            <h3 className="text-lg font-bold text-red-600 dark:text-red-400 mb-2">Permanently Delete</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              ⚠️ This action cannot be undone! Are you sure you want to permanently delete this entry?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowPermanentDeleteConfirm(null)}
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => showPermanentDeleteConfirm && handlePermanentDelete(showPermanentDeleteConfirm)}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-semibold"
+              >
+                Yes, Delete Forever
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+export default function AllEntriesPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#DE1C1C] mx-auto"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+        </div>
+      </div>
+    }>
+      <AllEntriesContent />
+    </Suspense>
   );
 }

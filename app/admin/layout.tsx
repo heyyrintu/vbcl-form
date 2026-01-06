@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import AppSidebar from "@/components/AppSidebar";
+import AppHeader from "@/components/AppHeader";
 import { auth } from "@/lib/auth";
 
 export default async function AdminLayout({
@@ -14,14 +15,17 @@ export default async function AdminLayout({
     }
 
     return (
-        <div className="flex h-screen bg-[#f8f9fc] overflow-hidden">
-            <AppSidebar />
-            <main className="flex-1 overflow-y-auto overflow-x-hidden relative">
-                <div className="absolute inset-0 bg-neutral-100/50 pointer-events-none" />
-                <div className="relative z-10 min-h-full">
-                    {children}
-                </div>
-            </main>
+        <div className="flex flex-col h-screen bg-[#f8f9fc] overflow-hidden">
+            <AppHeader />
+            <div className="flex flex-1 overflow-hidden">
+                <AppSidebar />
+                <main className="flex-1 overflow-y-auto overflow-x-hidden relative">
+                    <div className="absolute inset-0 bg-neutral-100/50 pointer-events-none" />
+                    <div className="relative z-10 min-h-full">
+                        {children}
+                    </div>
+                </main>
+            </div>
         </div>
     );
 }

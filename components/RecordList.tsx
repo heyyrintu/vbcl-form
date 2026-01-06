@@ -10,9 +10,11 @@ interface RecordListProps {
   onEdit?: (record: ProductionRecord) => void;
   onSubmit?: (record: ProductionRecord) => void;
   onCancel?: (record: ProductionRecord) => void;
+  onDelete?: (record: ProductionRecord) => void;
+  isAdmin?: boolean;
 }
 
-export default function RecordList({ records, isCompleted, onEdit, onSubmit, onCancel }: RecordListProps) {
+export default function RecordList({ records, isCompleted, onEdit, onSubmit, onCancel, onDelete, isAdmin }: RecordListProps) {
   if (records.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
@@ -37,6 +39,8 @@ export default function RecordList({ records, isCompleted, onEdit, onSubmit, onC
           onEdit={onEdit ? () => onEdit(record) : undefined}
           onSubmit={onSubmit ? () => onSubmit(record) : undefined}
           onCancel={onCancel ? () => onCancel(record) : undefined}
+          onDelete={onDelete ? () => onDelete(record) : undefined}
+          isAdmin={isAdmin}
         />
       ))}
     </div>

@@ -15,20 +15,41 @@ import {
   AlertCircle,
   Truck,
   Layers,
-  MapPin
+  MapPin,
+  Trash2
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface RecordCardProps {
   record: ProductionRecord;
   onEdit?: () => void;
   onSubmit?: () => void;
   onCancel?: () => void;
+  onDelete?: () => void;
   isCompleted?: boolean;
+  isAdmin?: boolean;
 }
 
-export default function RecordCard({ record, onEdit, onSubmit, onCancel, isCompleted }: RecordCardProps) {
+export default function RecordCard({ record, onEdit, onSubmit, onCancel, onDelete, isCompleted, isAdmin }: RecordCardProps) {
+  const router = useRouter();
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't navigate if clicking on buttons or interactive elements
+    const target = e.target as HTMLElement;
+    if (
+      target.closest("button") ||
+      target.closest("a") ||
+      target.closest('[role="button"]')
+    ) {
+      return;
+    }
+    router.push(`/all-entries/${record.id}`);
+  };
+
   return (
-    <div className="group relative bg-white/80 dark:bg-gray-900/80 backdrop-blur-md rounded-xl shadow-sm hover:shadow-xl border border-white/20 dark:border-gray-700/50 p-4 sm:p-5 transition-all duration-300 hover:-translate-y-1 overflow-hidden">
+    <div 
+      onClick={handleCardClick}
+      className="group relative bg-white/80 dark:bg-gray-900/80 backdrop-blur-md rounded-xl shadow-sm hover:shadow-xl border border-white/20 dark:border-gray-700/50 p-4 sm:p-5 transition-all duration-300 hover:-translate-y-1 overflow-hidden cursor-pointer">
       {/* Gradient Border Effect on Hover */}
       <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/10 via-transparent to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
@@ -59,12 +80,14 @@ export default function RecordCard({ record, onEdit, onSubmit, onCancel, isCompl
 
           <div className="flex items-center gap-2">
             <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 tracking-tight break-all">
-              {record.chassisNo}
+              {record.serialNo || "No Serial"}
             </h3>
           </div>
-          <div className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 font-medium">
+          <div className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 font-medium flex-wrap">
             <Layers className="w-4 h-4 shrink-0" />
             <span className="truncate">Model: {record.modelNo}</span>
+            <span className="text-gray-400 dark:text-gray-600">•</span>
+            <span className="truncate">Chassis: {record.chassisNo}</span>
           </div>
         </div>
       </div>
@@ -210,6 +233,17 @@ export default function RecordCard({ record, onEdit, onSubmit, onCancel, isCompl
             className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
           >
             Cancel
+          </Button>
+        )}
+        {isAdmin && onDelete && (
+          <Button
+            onClick={onDelete}
+            variant="outline"
+            size="sm"
+            className="border-red-300 text-red-600 hover:bg-red-100 hover:border-red-400 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30"
+            title="Delete (Admin only)"
+          >
+            <Trash2 className="w-4 h-4" />
           </Button>
         )}
       </div>

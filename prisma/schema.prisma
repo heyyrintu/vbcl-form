@@ -26,6 +26,7 @@ model Record {
   createdAt                            DateTime  @default(now())
   updatedAt                            DateTime  @updatedAt
   status                               String    // "PENDING" or "COMPLETED"
+  serialNo                             String?   // Format: Jan/05/001 (month/day/sequence)
   
   // Form fields
   dronaSupervisor                      String
@@ -49,6 +50,7 @@ model Record {
   // Other fields
   remarks                              String?
   completedAt                          DateTime? // For monthly counter logic
+  deletedAt                            DateTime? // For soft delete (recycle bin)
   
   // Relations
   employeeAssignments                  EmployeeAssignment[]

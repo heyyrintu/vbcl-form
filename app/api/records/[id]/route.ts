@@ -4,6 +4,52 @@ import { auth } from "@/lib/auth";
 import { getCurrentMonthRange } from "@/lib/utils";
 import { syncRecordToSheet } from "@/lib/googleSheets";
 import { assignEmployeesToRecord } from "@/lib/employeeUtils";
+import { generateSerialNumber } from "@/lib/serialNumberUtils";
+
+// GET - Fetch single record by ID
+export async function GET(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await context.params;
+
+    const record = await prisma.record.findUnique({
+      where: { id },
+      include: {
+        employeeAssignments: {
+          include: {
+            employee: {
+              select: {
+                id: true,
+                employeeId: true,
+                name: true,
+                role: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!record || record.deletedAt) {
+      return NextResponse.json({ error: "Record not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(record);
+  } catch (error) {
+    console.error("Error fetching record:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch record" },
+      { status: 500 }
+    );
+  }
+}
 
 // PATCH - Update record (save, submit, or cancel)
 export async function PATCH(
@@ -112,9 +158,17 @@ export async function PATCH(
       return NextResponse.json(updatedRecord);
     } else if (data.action === "save" || !data.action) {
       // Regular update (save)
+      // Generate serial number if date changed and exists
+      let serialNo = existingRecord.serialNo;
+      const newDate = data.date !== undefined ? data.date : existingRecord.date;
+      if (newDate && (!existingRecord.serialNo || data.date !== existingRecord.date)) {
+        serialNo = await generateSerialNumber(newDate);
+      }
+      
       const updatedRecord = await prisma.record.update({
         where: { id },
         data: {
+          serialNo,
           dronaSupervisor: data.dronaSupervisor !== undefined ? data.dronaSupervisor : existingRecord.dronaSupervisor,
           shift: data.shift !== undefined ? data.shift : existingRecord.shift,
           date: data.date !== undefined ? data.date : existingRecord.date,
@@ -159,7 +213,7 @@ export async function PATCH(
   }
 }
 
-// DELETE - Delete a record
+// DELETE - Soft delete a record (move to recycle bin)
 export async function DELETE(
   request: Request,
   context: { params: Promise<{ id: string }> }
@@ -172,8 +226,10 @@ export async function DELETE(
 
     const { id } = await context.params;
 
-    await prisma.record.delete({
+    // Soft delete by setting deletedAt
+    await prisma.record.update({
       where: { id },
+      data: { deletedAt: new Date() },
     });
 
     return NextResponse.json({ message: "Record deleted successfully" });

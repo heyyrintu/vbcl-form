@@ -145,7 +145,7 @@ export default function RecordForm({ existingRecord, onClose, onSuccess }: Recor
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
-  const [showHelpModal, setShowHelpModal] = useState(true);
+  const [showHelpModal, setShowHelpModal] = useState(!existingRecord);
   const [inTimeValue, setInTimeValue] = useState<Dayjs | null>(null);
   const [outTimeValue, setOutTimeValue] = useState<Dayjs | null>(null);
   const [selectedEmployees, setSelectedEmployees] = useState<Employee[]>([]);
